@@ -1,0 +1,15 @@
+# 原始行情数据不进仓库（作业要求）；结果 CSV 很小，可以提交
+data/
+*.parquet
+
+# 密钥/凭证
+.env
+*.key
+*.pem
+secrets.*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
