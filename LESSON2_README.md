@@ -23,6 +23,14 @@ python record_market.py --market both --symbol BTCUSDT --hours 24 --data-root da
 
 运行期间可主动断网一次，观察日志中的 gap、退避重连、重连快照。真实 24 小时录制需要持续运行 24 小时；本仓库不把三分钟合成演示声称为真实录制结果。
 
+采集结束后一键生成核验报告：
+
+```bash
+python validate_replay.py --data-root data/lesson2_real --require-pass
+```
+
+报告包含实际时间跨度、各频道事件数、gap、最终同步状态和前 20 档一致率。`--require-pass` 会检查双市场成交流、最终同步和 95% 一致率。
+
 ## 回放真实数据
 
 ```python
