@@ -12,7 +12,7 @@ python demo_sim_exchange.py --verbose
 
 演示输出：`output/lesson2/demo_validation.json`。合成数据只验证工程机制，不用于评价策略收益。
 
-当前离线验证：10 项测试通过；双市场前 20 档一致率 100%；2 次 gap 均暂停并恢复；双策略完整样本一致。
+当前离线验证：13 项测试通过；双市场前 20 档一致率 100%；2 次 gap 均暂停并恢复；双策略完整样本一致。
 
 ## 真实 24 小时采集
 
@@ -49,7 +49,7 @@ print(stats.consistency, ex.book("usdm", "BTCUSDT", depth=20))
 | `sim_exchange/` | 模拟交易所包 |
 | `record_market.py` | 双市场真实采集 |
 | `demo_sim_exchange.py` | 离线可重复演示 |
-| `tests/test_sim_exchange.py` | 10 项关键测试 |
+| `tests/test_sim_exchange.py` | 13 项关键测试 |
 | `LESSON2_NOTES.md` | 成交、排队、延迟与撮合伪代码 |
 | `docs/system_architecture.svg` | 系统结构图 |
 | `第二课_学习与汇报.html` | 术语 + 大白话学习与汇报材料 |

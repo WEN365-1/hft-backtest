@@ -30,6 +30,7 @@ class SimExchange:
         self._subscriptions: list[tuple[object, frozenset[str]]] = []
         self._books: dict[tuple[str, str], SyncedOrderBook] = {}
         self._held: dict[tuple[str, str], bool] = defaultdict(bool)
+        self._pending: dict[tuple[str, str], list[dict]] = defaultdict(list)
         self.stats = ValidationStats()
 
     def subscribe(self, strategy, topics: list[str]) -> None:
@@ -71,31 +72,55 @@ class SimExchange:
 
             if kind == "gap":
                 book.invalidate()
+                self._pending[key].clear()
                 self._held[key] = True
                 self.stats.gaps += 1
                 self._status(market, symbol, "gap", event.get("reason") or "recorded gap")
                 continue
 
-            # 缺页后只接受快照来恢复；中间旧簿与成交都不推给策略。
+            # 缺页后暂停对外推送，但缓存增量供下一张快照衔接。
             if self._held[key] and kind != "snapshot":
+                if kind == "depth":
+                    self._pending[key].append(event)
                 continue
 
             if kind == "snapshot":
                 if book.synced and book.last_update_id:
                     self.stats.snapshot_comparisons += 1
                     self.stats.exact_matches += int(compare_top(book, event, 20))
+                    # 健康簿的周期快照只用于体检；不能用可能较旧的快照倒退重置。
+                    self._publish(f"{base_topic}.book", "on_book", {
+                        **event, "book": book.top(20),
+                    })
+                    continue
                 was_held = self._held[key]
                 book.apply_snapshot(event)
                 self._held[key] = False
-                if was_held:
+                # WS 先于 REST 返回的事件在此衔接，不能因尚未快照而丢弃。
+                pending = sorted(self._pending.pop(key, []),
+                                 key=lambda x: (x["recv_ts_ms"], x.get("seq") or 0))
+                for index, buffered in enumerate(pending):
+                    result = book.apply_depth(buffered)
+                    if result == "gap":
+                        self._held[key] = True
+                        self._pending[key] = pending[index:]
+                        self.stats.gaps += 1
+                        self._status(market, symbol, "gap", "initial snapshot mismatch")
+                        break
+                if was_held and not self._held[key]:
                     self._status(market, symbol, "ready", "resynchronized")
-                self._publish(f"{base_topic}.book", "on_book", {
-                    **event, "book": book.top(20),
-                })
+                if not self._held[key]:
+                    self._publish(f"{base_topic}.book", "on_book", {
+                        **event, "book": book.top(20),
+                    })
             elif kind == "depth":
+                if not book.synced:
+                    self._pending[key].append(event)
+                    continue
                 result = book.apply_depth(event)
                 if result == "gap":
                     self._held[key] = True
+                    self._pending[key] = [event]
                     self.stats.gaps += 1
                     self._status(market, symbol, "gap", "depth sequence gap")
                 elif result == "ok":

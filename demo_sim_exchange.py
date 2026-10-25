@@ -47,7 +47,7 @@ def make_demo(root: Path, minutes: int = 3) -> None:
             asks = [[60000.5, round(1.5 - wave, 6)], [60001.0, 2.5]]
             event = {"market": market, "symbol": "BTCUSDT", "event_type": "depth",
                      "recv_ts_ms": ts, "event_ts_ms": ts - 5,
-                     "U": uid, "u": uid, "pu": uid - 1,
+                     "U": uid - 1, "u": uid, "pu": uid - 1,
                      "bids": bids, "asks": asks}
             batch.append(event)
             batch.append({"market": market, "symbol": "BTCUSDT", "event_type": "trade",

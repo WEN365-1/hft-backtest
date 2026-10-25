@@ -20,6 +20,7 @@ class SyncedOrderBook:
     asks: dict[float, float] = field(default_factory=dict)
     last_update_id: int = 0
     synced: bool = False
+    awaiting_first: bool = False
 
     def __post_init__(self) -> None:
         if self.market not in {"spot", "usdm"}:
@@ -30,9 +31,11 @@ class SyncedOrderBook:
         self.asks = {p: q for p, q in levels(event.get("asks")) if q > 0}
         self.last_update_id = int(event.get("last_update_id") or event.get("u") or 0)
         self.synced = True
+        self.awaiting_first = True
 
     def invalidate(self) -> None:
         self.synced = False
+        self.awaiting_first = False
 
     def apply_depth(self, event: dict) -> str:
         """返回 ok/stale/gap/unsynced；gap 后绝不继续推送旧订单簿。"""
@@ -40,13 +43,18 @@ class SyncedOrderBook:
             return "unsynced"
         first, final = int(event["U"]), int(event["u"])
         last = self.last_update_id
-        if final < last or (self.market == "spot" and final <= last):
+        stale = final < last or (not self.awaiting_first
+                                 and self.market == "spot" and final <= last)
+        if stale:
             return "stale"
-        if self.market == "spot":
-            # 现货允许一个事件覆盖多个编号：last+1 落在 [U,u] 内即连续。
+        if self.awaiting_first:
+            # 两市场首条衔接事件都必须覆盖快照 lastUpdateId；此步不看 pu。
+            continuous = first <= last <= final
+        elif self.market == "spot":
+            # 现货后续事件允许 last+1 落在 [U,u] 内。
             continuous = first <= last + 1 <= final
         else:
-            # U 本位用上一事件的最终编号 pu 串联，不能套用现货规则。
+            # U 本位后续事件用 pu 串联上一事件最终编号。
             continuous = int(event["pu"]) == last
         if not continuous:
             self.invalidate()
@@ -62,6 +70,7 @@ class SyncedOrderBook:
             else:
                 self.asks[p] = q
         self.last_update_id = final
+        self.awaiting_first = False
         return "ok"
 
     def top(self, depth: int = 20) -> dict:

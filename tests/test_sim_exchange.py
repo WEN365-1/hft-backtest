@@ -15,7 +15,7 @@ def snap(market="spot", ts=0, uid=100):
 
 def depth(market="spot", ts=1, uid=101, pu=None):
     return {"market": market, "symbol": "BTCUSDT", "event_type": "depth",
-            "recv_ts_ms": ts, "U": uid, "u": uid, "pu": uid - 1 if pu is None else pu,
+            "recv_ts_ms": ts, "U": uid - 1, "u": uid, "pu": uid - 1 if pu is None else pu,
             "bids": [[99, 2.5]], "asks": []}
 
 
@@ -39,7 +39,7 @@ def test_usdm_requires_pu_not_spot_rule():
 def test_stale_depth_does_not_move_book():
     book = SyncedOrderBook("spot", "BTCUSDT")
     book.apply_snapshot(snap())
-    assert book.apply_depth(depth(uid=100)) == "stale"
+    assert book.apply_depth(depth(uid=99)) == "stale"
     assert book.last_update_id == 100
 
 
@@ -134,3 +134,34 @@ def test_top20_consistency_metric():
     stats = ex.run()
     assert stats.snapshot_comparisons == 1
     assert stats.exact_matches == 1 and stats.consistency == 1.0
+
+
+def test_usdm_first_event_covers_snapshot_before_pu_rule():
+    book = SyncedOrderBook("usdm", "BTCUSDT")
+    book.apply_snapshot(snap("usdm", uid=100))
+    first = depth("usdm", uid=101, pu=95)  # 首条不看 pu，U=100 覆盖快照编号。
+    assert book.apply_depth(first) == "ok"
+    following = depth("usdm", uid=102, pu=100)
+    assert book.apply_depth(following) == "gap"  # 后续必须 pu=101。
+
+
+def test_depth_before_snapshot_is_buffered_and_applied():
+    class Source:
+        def events(self):
+            early = depth("usdm", ts=0, uid=101, pu=95)
+            yield early
+            yield snap("usdm", ts=1, uid=100)
+    ex = SimExchange(Source())
+    stats = ex.run()
+    assert stats.gaps == 0
+    assert ex.book("usdm", "BTCUSDT")["last_update_id"] == 101
+    assert ex.book("usdm", "BTCUSDT")["bids"][0] == (99.0, 2.5)
+
+
+def test_first_spot_event_can_end_exactly_at_snapshot_id():
+    book = SyncedOrderBook("spot", "BTCUSDT")
+    book.apply_snapshot(snap(uid=100))
+    event = depth(uid=100)  # U=99, u=100：首条覆盖快照，不是旧事件。
+    assert book.apply_depth(event) == "ok"
+    following = depth(uid=101)
+    assert book.apply_depth(following) == "ok"
