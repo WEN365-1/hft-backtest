@@ -77,6 +77,23 @@ def test_replay_time_filter(tmp_path):
     assert [x["recv_ts_ms"] for x in source.events()] == [20]
 
 
+def test_backfill_uses_replay_time_and_preserves_receive_time(tmp_path):
+    store = ParquetEventStore(tmp_path)
+    historical = {"market": "usdm", "symbol": "BTCUSDT", "event_type": "trade",
+                  "recv_ts_ms": 7_200_000, "replay_ts_ms": 3_600_000,
+                  "trade_ts_ms": 3_600_000, "p": "100", "q": "1", "m": False,
+                  "source": "binance_rest_aggTrades_backfill"}
+    path = store.write_batch([historical])[0]
+    store.write_batch([snap("usdm", ts=3_600_500)])
+    assert "hour=01" in path.parts  # 不按实际下载小时 02 错放研究回放分区。
+    events = list(ParquetReplaySource(tmp_path, start_ms=3_600_000,
+                                      end_ms=3_600_000).events())
+    assert len(events) == 1
+    assert events[0]["recv_ts_ms"] == 7_200_000
+    assert events[0]["replay_ts_ms"] == 3_600_000
+    assert events[0]["source"] == "binance_rest_aggTrades_backfill"
+
+
 def test_gap_pauses_then_snapshot_recovers():
     class Source:
         def events(self):

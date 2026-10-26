@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from collections import deque
 
+from .storage import replay_time_ms
+
 
 class OneSecondMetricsStrategy:
     def __init__(self, name: str = "metrics", verbose: bool = True):
@@ -16,15 +18,15 @@ class OneSecondMetricsStrategy:
     def on_book(self, event: dict) -> None:
         key = (event["market"], event["symbol"])
         self.books[key] = event["book"]
-        self._sample(key, event["recv_ts_ms"])
+        self._sample(key, replay_time_ms(event))
 
     def on_trade(self, event: dict) -> None:
         # m=true 表示买方是 maker，因此是主动卖，记为负量。
         key = (event["market"], event["symbol"])
         qty = float(event["q"])
         self.trades.setdefault(key, deque()).append(
-            (event["recv_ts_ms"], -qty if event["m"] else qty))
-        self._sample(key, event["recv_ts_ms"])
+            (replay_time_ms(event), -qty if event["m"] else qty))
+        self._sample(key, replay_time_ms(event))
 
     def on_status(self, event: dict) -> None:
         self.statuses.append(event)

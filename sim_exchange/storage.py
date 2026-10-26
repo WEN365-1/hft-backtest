@@ -18,8 +18,15 @@ SCHEMA = pa.schema([
     ("U", pa.int64()), ("u", pa.int64()), ("pu", pa.int64()),
     ("last_update_id", pa.int64()), ("p", pa.string()), ("q", pa.string()),
     ("m", pa.bool_()), ("bids", pa.string()), ("asks", pa.string()),
-    ("reason", pa.string()),
+    ("reason", pa.string()), ("source", pa.string()),
+    ("replay_ts_ms", pa.int64()),
 ])
+
+
+def replay_time_ms(event: dict) -> int:
+    """历史补录按发生时间回放；普通实时事件仍按本地接收时间回放。"""
+    replay_ts = event.get("replay_ts_ms")
+    return event["recv_ts_ms"] if replay_ts is None else replay_ts
 
 
 def normalize_event(event: dict, seq: int = 0) -> dict:
@@ -42,7 +49,7 @@ class ParquetEventStore:
         for event in events:
             self._seq += 1
             row = normalize_event(event, self._seq)
-            hour = int(row["recv_ts_ms"] // 3_600_000)
+            hour = int(replay_time_ms(row) // 3_600_000)
             groups.setdefault((row["market"], row["symbol"], hour), []).append(row)
         paths = []
         for (market, symbol, hour), rows in groups.items():

@@ -7,7 +7,7 @@ from typing import Iterator
 
 import pyarrow.parquet as pq
 
-from .storage import ParquetEventStore
+from .storage import ParquetEventStore, replay_time_ms
 
 
 class ParquetReplaySource:
@@ -21,11 +21,12 @@ class ParquetReplaySource:
         pf = pq.ParquetFile(path)
         for batch in pf.iter_batches(batch_size=batch_size):
             rows = batch.to_pylist()
-            rows.sort(key=lambda x: (x["recv_ts_ms"], x["seq"]))
+            rows.sort(key=lambda x: (replay_time_ms(x), x["seq"]))
             for row in rows:
-                if self.start_ms is not None and row["recv_ts_ms"] < self.start_ms:
+                replay_ts = replay_time_ms(row)
+                if self.start_ms is not None and replay_ts < self.start_ms:
                     continue
-                if self.end_ms is not None and row["recv_ts_ms"] > self.end_ms:
+                if self.end_ms is not None and replay_ts > self.end_ms:
                     return
                 yield row
 
@@ -38,7 +39,7 @@ class ParquetReplaySource:
                 row = next(iterator)
             except StopIteration:
                 continue
-            heapq.heappush(heap, (row["recv_ts_ms"], row["seq"], file_no, row, iterator))
+            heapq.heappush(heap, (replay_time_ms(row), row["seq"], file_no, row, iterator))
         while heap:
             _, _, file_no, row, iterator = heapq.heappop(heap)
             yield row
@@ -46,4 +47,4 @@ class ParquetReplaySource:
                 nxt = next(iterator)
             except StopIteration:
                 continue
-            heapq.heappush(heap, (nxt["recv_ts_ms"], nxt["seq"], file_no, nxt, iterator))
+            heapq.heappush(heap, (replay_time_ms(nxt), nxt["seq"], file_no, nxt, iterator))

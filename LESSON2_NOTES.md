@@ -5,8 +5,9 @@
 ## 1. 本课做了什么
 
 - `record_market.py`：现货 WebSocket 采集 `depth@100ms`、`aggTrade`，U 本位采集 `depth@100ms`、逐笔 `trade`；保存 `E`、`T`、`recv_ts_ms`；分钟快照；断线写 `gap`，指数退避重连并重新快照。U 本位 `aggTrade` 实测持续无消息，`trade` 提供相同核心字段且粒度更细。
-- `sim_exchange/storage.py`：统一事件 Schema，Parquet + ZSTD；按 `market/symbol/date=YYYY-MM-DD/hour=HH` 分区；UUID 批文件追加，不覆盖。
-- `sim_exchange/sources.py`：PyArrow 分批读取 + k 路归并，按本地接收时间输出；内存不随总数据时长线性增长。
+- `backfill_usdm_trades.py`：只用币安真实 REST `aggTrades` 补实时成交开始前的历史缺口；`recv_ts_ms` 保留实际下载时间，`replay_ts_ms=T` 专供研究回放，`source` 明示来源，绝不冒充实时接收。
+- `sim_exchange/storage.py`：统一事件 Schema，Parquet + ZSTD；按 `market/symbol/date=YYYY-MM-DD/hour=HH` 分区；UUID 批文件追加，不覆盖。实时事件按接收小时分区，历史补录按成交小时分区。
+- `sim_exchange/sources.py`：PyArrow 分批读取 + k 路归并，实时事件按本地接收时间输出，明确标记的历史补录按 `replay_ts_ms` 输出；内存不随总数据时长线性增长。
 - `sim_exchange/orderbook.py`：现货检查 `U <= last+1 <= u`，U 本位检查 `pu == last`；数量 0 删除价位。
 - `sim_exchange/exchange.py`：缺页通知、暂停、快照恢复；多策略订阅、深拷贝隔离、回调异常隔离；快照前 20 档一致率统计。
 - `sim_exchange/interfaces.py`：预留 `OrderRequest`、`RiskDecision`、`OrderAck`、`AccountSnapshot`。
@@ -105,7 +106,9 @@ on_fill(fill):
 
 ### 真实中途回放补充
 
-截至约 5.07 小时真实主采集的中途回放中，双市场最终均 synced=true、gap=0；同一 `lastUpdateId` 下有效比较 306 次，完全一致 305 次，前 20 档一致率 99.67%。另有 296 张快照因聚合 depth 跨过编号而无法还原事件中间状态，单列为 `skipped_crossed`，未计入分母。这是中途结果，不替代完整 24 小时最终核验。长时间回放还将每文件 batch 降为 128，并在无订阅者时跳过无效订单簿推送载荷构造，避免内存膨胀和无效全簿排序。
+截至约 5.30 小时真实主采集的中途回放中，双市场最终均 synced=true、gap=0；同一 `lastUpdateId` 下有效比较 320 次，完全一致 319 次，前 20 档一致率 99.69%。另有 310 张快照因聚合 depth 跨过编号而无法还原事件中间状态，单列为 `skipped_crossed`，未计入分母。这是中途结果，不替代完整 24 小时最终核验。长时间回放还将每文件 batch 降为 128，并在无订阅者时跳过无效订单簿推送载荷构造，避免内存膨胀和无效全簿排序。
+
+本次 USD-M 实时逐笔成交从 10:53 开始；此前 07:58—10:53 的缺口以 222,914 条币安真实 REST `aggTrades` 补齐。补录与实时数据可通过 `source` 区分：补录 `recv_ts_ms` 是实际下载时间，`replay_ts_ms=T` 是历史成交发生时间，REST 没有的 WebSocket `E` 留空。核验报告将实时 receive 覆盖和含补录的 replay 覆盖分开；前者不能被后者冒充。补录清单为 `output/lesson2/usdm_trade_backfill_manifest.json`，中途报告为 `output/lesson2/real_24h_midrun_backfill_validation.json`。
 
 ### 真实短时冒烟补充
 
