@@ -26,7 +26,9 @@ def now_ms() -> int:
 
 def endpoints(market: str, symbol: str) -> tuple[str, str]:
     s = symbol.lower()
-    streams = f"{s}@depth@100ms/{s}@aggTrade"
+    # 实测 USD-M 的 aggTrade 持续无消息，而同主机逐笔 trade 正常；保留相同 E/T/p/q/m。
+    trade_stream = "aggTrade" if market == "spot" else "trade"
+    streams = f"{s}@depth@100ms/{s}@{trade_stream}"
     if market == "spot":
         return (f"wss://stream.binance.com:9443/stream?streams={streams}",
                 "https://api.binance.com/api/v3/depth")
@@ -77,7 +79,7 @@ async def record_one(market: str, symbol: str, hours: float, store: ParquetEvent
                                 "event_ts_ms": data.get("E"), "U": data["U"],
                                 "u": data["u"], "pu": data.get("pu"),
                                 "bids": data["b"], "asks": data["a"]})
-                        elif stream.endswith("@aggTrade"):
+                        elif stream.endswith(("@aggTrade", "@trade")):
                             rows.append({"market": market, "symbol": symbol,
                                 "event_type": "trade", "recv_ts_ms": recv,
                                 "event_ts_ms": data.get("E"), "trade_ts_ms": data.get("T"),
@@ -93,6 +95,53 @@ async def record_one(market: str, symbol: str, hours: float, store: ParquetEvent
             store.write_batch([{"market": market, "symbol": symbol,
                 "event_type": "gap", "recv_ts_ms": now_ms(), "reason": repr(exc)}])
             print(f"{market} 断线：{exc!r}；{backoff}s 后重连", flush=True)
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * 2, 30)
+        finally:
+            if rows:
+                store.write_batch(rows)
+
+
+async def record_usdm_trades(symbol: str, hours: float, store: ParquetEventStore,
+                             proxy: str | None = None) -> None:
+    """只补录 USD-M 逐笔成交，不重复写深度或快照。"""
+    url = f"wss://fstream.binance.com/ws/{symbol.lower()}@trade"
+    end = time.monotonic() + hours * 3600
+    backoff = 1
+    while time.monotonic() < end:
+        rows = []
+        try:
+            kwargs = {"ping_interval": 20, "ping_timeout": 60}
+            if proxy:
+                kwargs["proxy"] = proxy
+            async with connect(url, **kwargs) as ws:
+                print("usdm 逐笔成交流已连接", flush=True)
+                last_flush = time.monotonic()
+                backoff = 1
+                while time.monotonic() < end:
+                    try:
+                        raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
+                    except asyncio.TimeoutError:
+                        raw = None
+                    recv = now_ms()
+                    if raw:
+                        data = json.loads(raw)
+                        if data.get("e") == "trade":
+                            rows.append({"market": "usdm", "symbol": symbol,
+                                "event_type": "trade", "recv_ts_ms": recv,
+                                "event_ts_ms": data.get("E"), "trade_ts_ms": data.get("T"),
+                                "p": data["p"], "q": data["q"], "m": data["m"]})
+                    if time.monotonic() - last_flush >= 60:
+                        store.write_batch(rows)
+                        print(f"usdm 已补写 {len(rows)} 条逐笔成交", flush=True)
+                        rows, last_flush = [], time.monotonic()
+        except Exception as exc:
+            store.write_batch(rows)
+            rows = []
+            store.write_batch([{"market": "usdm", "symbol": symbol,
+                "event_type": "gap", "recv_ts_ms": now_ms(),
+                "reason": f"trade supplement: {exc!r}"}])
+            print(f"usdm 成交流断线：{exc!r}；{backoff}s 后重连", flush=True)
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, 30)
         finally:

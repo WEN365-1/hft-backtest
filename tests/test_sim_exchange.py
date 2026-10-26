@@ -5,6 +5,15 @@ import pyarrow.parquet as pq
 from sim_exchange import ParquetEventStore, ParquetReplaySource, SimExchange
 from sim_exchange.orderbook import SyncedOrderBook
 from sim_exchange.strategies import OneSecondMetricsStrategy
+from record_market import endpoints
+
+
+def test_market_specific_trade_streams():
+    spot_url, _ = endpoints("spot", "BTCUSDT")
+    usdm_url, _ = endpoints("usdm", "BTCUSDT")
+    assert "btcusdt@aggTrade" in spot_url
+    assert "btcusdt@trade" in usdm_url
+    assert "btcusdt@aggTrade" not in usdm_url
 
 
 def snap(market="spot", ts=0, uid=100):

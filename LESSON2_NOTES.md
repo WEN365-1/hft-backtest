@@ -4,7 +4,7 @@
 
 ## 1. 本课做了什么
 
-- `record_market.py`：现货与 U 本位 WebSocket 采集 `depth@100ms`、`aggTrade`；保存 `E`、`T`、`recv_ts_ms`；分钟快照；断线写 `gap`，指数退避重连并重新快照。
+- `record_market.py`：现货 WebSocket 采集 `depth@100ms`、`aggTrade`，U 本位采集 `depth@100ms`、逐笔 `trade`；保存 `E`、`T`、`recv_ts_ms`；分钟快照；断线写 `gap`，指数退避重连并重新快照。U 本位 `aggTrade` 实测持续无消息，`trade` 提供相同核心字段且粒度更细。
 - `sim_exchange/storage.py`：统一事件 Schema，Parquet + ZSTD；按 `market/symbol/date=YYYY-MM-DD/hour=HH` 分区；UUID 批文件追加，不覆盖。
 - `sim_exchange/sources.py`：PyArrow 分批读取 + k 路归并，按本地接收时间输出；内存不随总数据时长线性增长。
 - `sim_exchange/orderbook.py`：现货检查 `U <= last+1 <= u`，U 本位检查 `pu == last`；数量 0 删除价位。

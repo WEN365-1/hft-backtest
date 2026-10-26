@@ -8,6 +8,9 @@ data/
 *.pem
 secrets.*
 
+# 长时间采集的运行状态是动态文件，不提交
+output/lesson2/*status.json
+
 # Python
 __pycache__/
 *.py[cod]
