@@ -145,6 +145,23 @@ def test_top20_consistency_metric():
     assert stats.exact_matches == 1 and stats.consistency == 1.0
 
 
+def test_snapshot_comparison_waits_for_same_update_id():
+    class Source:
+        def events(self):
+            yield snap()
+            yield depth()
+            expected = snap(ts=2, uid=102)
+            expected["bids"] = [[99, 2.5], [98, 3]]
+            yield expected  # 本地编号 101，先等待，不比较不同状态。
+            yield snap(ts=3, uid=100)  # 本地已超过旧快照，明确跳过。
+            yield depth(ts=4, uid=102)
+    stats = SimExchange(Source()).run()
+    assert stats.snapshot_comparisons == 1
+    assert stats.exact_matches == 1
+    assert stats.snapshot_skipped_stale == 1
+    assert stats.snapshot_pending == 0
+
+
 def test_usdm_first_event_covers_snapshot_before_pu_rule():
     book = SyncedOrderBook("usdm", "BTCUSDT")
     book.apply_snapshot(snap("usdm", uid=100))

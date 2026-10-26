@@ -15,6 +15,9 @@ log = logging.getLogger(__name__)
 class ValidationStats:
     snapshot_comparisons: int = 0
     exact_matches: int = 0
+    snapshot_skipped_stale: int = 0
+    snapshot_skipped_crossed: int = 0
+    snapshot_pending: int = 0
     gaps: int = 0
     callback_errors: int = 0
     pushed: dict[str, int] = field(default_factory=lambda: defaultdict(int))
@@ -31,6 +34,7 @@ class SimExchange:
         self._books: dict[tuple[str, str], SyncedOrderBook] = {}
         self._held: dict[tuple[str, str], bool] = defaultdict(bool)
         self._pending: dict[tuple[str, str], list[dict]] = defaultdict(list)
+        self._snapshot_checks: dict[tuple[str, str], list[dict]] = defaultdict(list)
         self.stats = ValidationStats()
 
     def subscribe(self, strategy, topics: list[str]) -> None:
@@ -63,6 +67,31 @@ class SimExchange:
             "market": market, "symbol": symbol, "state": state, "reason": reason,
         })
 
+    def _publish_book(self, base_topic: str, event: dict, book: SyncedOrderBook) -> None:
+        topic = f"{base_topic}.book"
+        # 核验常无订阅者；此时避免对每条 depth 排序整本簿并构造无用载荷。
+        if any(topic in topics for _, topics in self._subscriptions):
+            self._publish(topic, "on_book", {**event, "book": book.top(20)})
+
+    def _compare_snapshot(self, book: SyncedOrderBook, snapshot: dict) -> None:
+        # 只有同一更新编号才代表同一市场状态，不能直接比较任意到达时刻的簿。
+        assert book.last_update_id == int(snapshot["last_update_id"])
+        self.stats.snapshot_comparisons += 1
+        self.stats.exact_matches += int(compare_top(book, snapshot, 20))
+
+    def _check_pending_snapshots(self, key, book: SyncedOrderBook) -> None:
+        waiting = []
+        for snapshot in self._snapshot_checks[key]:
+            snapshot_id = int(snapshot["last_update_id"])
+            if book.last_update_id < snapshot_id:
+                waiting.append(snapshot)
+            elif book.last_update_id == snapshot_id:
+                self._compare_snapshot(book, snapshot)
+            else:
+                # 一个聚合 depth 跨过了快照编号，无法拆出事件中间状态，不能假装可比。
+                self.stats.snapshot_skipped_crossed += 1
+        self._snapshot_checks[key] = waiting
+
     def run(self) -> ValidationStats:
         for event in self.source.events():
             market, symbol, kind = event["market"], event["symbol"], event["event_type"]
@@ -73,6 +102,7 @@ class SimExchange:
             if kind == "gap":
                 book.invalidate()
                 self._pending[key].clear()
+                self._snapshot_checks[key].clear()
                 self._held[key] = True
                 self.stats.gaps += 1
                 self._status(market, symbol, "gap", event.get("reason") or "recorded gap")
@@ -86,12 +116,15 @@ class SimExchange:
 
             if kind == "snapshot":
                 if book.synced and book.last_update_id:
-                    self.stats.snapshot_comparisons += 1
-                    self.stats.exact_matches += int(compare_top(book, event, 20))
+                    snapshot_id = int(event["last_update_id"])
+                    if book.last_update_id == snapshot_id:
+                        self._compare_snapshot(book, event)
+                    elif book.last_update_id < snapshot_id:
+                        self._snapshot_checks[key].append(event)
+                    else:
+                        self.stats.snapshot_skipped_stale += 1
                     # 健康簿的周期快照只用于体检；不能用可能较旧的快照倒退重置。
-                    self._publish(f"{base_topic}.book", "on_book", {
-                        **event, "book": book.top(20),
-                    })
+                    self._publish_book(base_topic, event, book)
                     continue
                 was_held = self._held[key]
                 book.apply_snapshot(event)
@@ -110,9 +143,7 @@ class SimExchange:
                 if was_held and not self._held[key]:
                     self._status(market, symbol, "ready", "resynchronized")
                 if not self._held[key]:
-                    self._publish(f"{base_topic}.book", "on_book", {
-                        **event, "book": book.top(20),
-                    })
+                    self._publish_book(base_topic, event, book)
             elif kind == "depth":
                 if not book.synced:
                     self._pending[key].append(event)
@@ -124,11 +155,11 @@ class SimExchange:
                     self.stats.gaps += 1
                     self._status(market, symbol, "gap", "depth sequence gap")
                 elif result == "ok":
-                    self._publish(f"{base_topic}.book", "on_book", {
-                        **event, "book": book.top(20),
-                    })
+                    self._check_pending_snapshots(key, book)
+                    self._publish_book(base_topic, event, book)
             elif kind == "trade":
                 self._publish(f"{base_topic}.trade", "on_trade", event)
             else:
                 raise ValueError(f"未知事件类型: {kind}")
+        self.stats.snapshot_pending = sum(len(x) for x in self._snapshot_checks.values())
         return self.stats

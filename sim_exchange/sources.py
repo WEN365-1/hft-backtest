@@ -16,8 +16,8 @@ class ParquetReplaySource:
         self.store = ParquetEventStore(root)
         self.start_ms, self.end_ms, self.speed = start_ms, end_ms, speed
 
-    def _file_rows(self, path: Path, batch_size: int = 4096) -> Iterator[dict]:
-        # 每个文件内部按接收时间排序；按 batch 读取，不加载整段数据。
+    def _file_rows(self, path: Path, batch_size: int = 128) -> Iterator[dict]:
+        # 小批次避免“文件数 × 4096”在长时间录制后膨胀为数百万个字典。
         pf = pq.ParquetFile(path)
         for batch in pf.iter_batches(batch_size=batch_size):
             rows = batch.to_pylist()

@@ -12,7 +12,7 @@ python demo_sim_exchange.py --verbose
 
 演示输出：`output/lesson2/demo_validation.json`。合成数据只验证工程机制，不用于评价策略收益。
 
-当前离线验证：14 项测试通过；双市场前 20 档一致率 100%；2 次 gap 均暂停并恢复；双策略完整样本一致。
+当前离线验证：15 项测试通过；双市场前 20 档一致率 100%；2 次 gap 均暂停并恢复；双策略完整样本一致。
 
 ## 真实 24 小时采集
 
@@ -33,7 +33,7 @@ python validate_replay.py --data-root data/lesson2_real --require-pass
 python validate_replay.py --data-root data/lesson2_real --require-pass --require-24h
 ```
 
-报告包含实际时间跨度、每个频道独立的首尾时间与覆盖小时数、gap 明细、最终同步状态和前 20 档一致率。`--require-pass` 检查双市场成交流、最终同步和 95% 一致率；`--require-24h` 额外拒绝任何不足 23.99 小时的必需频道。首尾跨度不等于中间无缺失，仍需结合 gap 和补录记录判断。
+报告包含实际时间跨度、每个频道独立的首尾时间与覆盖小时数、gap 明细、最终同步状态和前 20 档一致率。一致率只在本地簿与快照的 `lastUpdateId` 相同时计算；旧快照、被聚合事件跨过的快照和仍等待对齐的快照分别统计，不混入分母。`--require-pass` 检查双市场成交流、最终同步和 95% 一致率；`--require-24h` 额外拒绝任何不足 23.99 小时的必需频道。首尾跨度不等于中间无缺失，仍需结合 gap 和补录记录判断。
 
 ## 真实主动断连验证
 
@@ -69,7 +69,7 @@ print(stats.consistency, ex.book("usdm", "BTCUSDT", depth=20))
 | `sim_exchange/` | 模拟交易所包 |
 | `record_market.py` | 双市场真实采集 |
 | `demo_sim_exchange.py` | 离线可重复演示 |
-| `tests/test_sim_exchange.py` | 14 项关键测试 |
+| `tests/test_sim_exchange.py` | 15 项关键测试 |
 | `LESSON2_NOTES.md` | 成交、排队、延迟与撮合伪代码 |
 | `docs/system_architecture.svg` | 系统结构图 |
 | `第二课_学习与汇报.html` | 术语 + 大白话学习与汇报材料 |

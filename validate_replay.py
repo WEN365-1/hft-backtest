@@ -60,6 +60,9 @@ def validate(root: str, output: str) -> dict:
         "channel_coverage": channel_coverage,
         "all_required_channels_24h": required_channels_24h,
         "snapshot_comparisons": stats.snapshot_comparisons,
+        "snapshot_skipped_stale": stats.snapshot_skipped_stale,
+        "snapshot_skipped_crossed": stats.snapshot_skipped_crossed,
+        "snapshot_pending": stats.snapshot_pending,
         "top20_exact_matches": stats.exact_matches,
         "top20_consistency": (stats.exact_matches / stats.snapshot_comparisons
                               if stats.snapshot_comparisons else None),
@@ -67,7 +70,7 @@ def validate(root: str, output: str) -> dict:
         "gap_details": gap_details,
         "final_synced": {m: b["synced"] for m, b in books.items()},
         "callback_errors": stats.callback_errors,
-        "note": "首尾覆盖不等于中间无缺失；gap 允许在主动断网时出现，关键是通知、暂停并成功恢复。补录频道与时段须单列。",
+        "note": "一致率只比较同一 lastUpdateId；旧快照或被聚合事件跨过的快照单列，不计入分母。首尾覆盖不等于中间无缺失，补录时段须单列。",
     }
     out = Path(output)
     out.parent.mkdir(parents=True, exist_ok=True)
