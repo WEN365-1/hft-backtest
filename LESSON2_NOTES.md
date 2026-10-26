@@ -107,6 +107,10 @@ on_fill(fill):
 
 约 68 秒真实公开行情样本中，现货 depth 665 条、U 本位 depth 669 条、现货 trade 296 条，两个市场各有 2 张快照；修正首事件缓存与编号边界后，双市场最终均连续同步、gap 为 0。两次周期快照精确比较均未一致，说明真实快照与本地事件流存在时间错位，不能用短样本宣称达到 95% 一致率。该样本未收到 U 本位 trade，但 REST 可查到同期成交，需延长频道观测；这些结果只证明采集与回放链路已真实贯通，不替代 24 小时验证。
 
+### 真实主动断连补充
+
+`diagnose_disconnect.py` 在真实现货 WebSocket 收到行情后，以 1012 主动关闭首条连接。实测写入 1 次真实 `ConnectionClosedError` gap，1 秒后重连并重新获取快照；最后 gap 之后收到 1 张 snapshot、246 条 depth、62 条 trade，最终订单簿 synced=true。该结果证明原采集器的真实断连恢复路径有效，但它是独立连接级测试，不是整机断网，也不是 24 小时主采集中的自然断线。
+
 ## 7. 参考资料
 
 - hftbacktest Order Fill: https://hftbacktest.readthedocs.io/en/latest/order_fill.html

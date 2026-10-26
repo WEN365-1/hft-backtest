@@ -35,6 +35,14 @@ python validate_replay.py --data-root data/lesson2_real --require-pass --require
 
 报告包含实际时间跨度、每个频道独立的首尾时间与覆盖小时数、gap 明细、最终同步状态和前 20 档一致率。`--require-pass` 检查双市场成交流、最终同步和 95% 一致率；`--require-24h` 额外拒绝任何不足 23.99 小时的必需频道。首尾跨度不等于中间无缺失，仍需结合 gap 和补录记录判断。
 
+## 真实主动断连验证
+
+```bash
+python diagnose_disconnect.py
+```
+
+该测试在真实现货 WebSocket 收到行情后主动关闭首条连接，不注入伪 gap，也不影响整机网络。2026-10-26 的实测产生 1 次真实 gap，随后自动重连并重新快照；最后 gap 之后收到 1 张快照、246 条 depth、62 条 trade，最终同步为 true。证据见 `output/lesson2/controlled_disconnect_validation.json`。这是独立连接级断连测试，不冒充 24 小时主采集发生了断线，也不声称做过整机断网。
+
 ## 回放真实数据
 
 ```python
