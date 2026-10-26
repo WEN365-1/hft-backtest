@@ -29,9 +29,11 @@ python record_market.py --market both --symbol BTCUSDT --hours 24 --data-root da
 
 ```bash
 python validate_replay.py --data-root data/lesson2_real --require-pass
+# 额外要求双市场 depth/snapshot/trade 各自覆盖完整 24 小时：
+python validate_replay.py --data-root data/lesson2_real --require-pass --require-24h
 ```
 
-报告包含实际时间跨度、各频道事件数、gap、最终同步状态和前 20 档一致率。`--require-pass` 会检查双市场成交流、最终同步和 95% 一致率。
+报告包含实际时间跨度、每个频道独立的首尾时间与覆盖小时数、gap 明细、最终同步状态和前 20 档一致率。`--require-pass` 检查双市场成交流、最终同步和 95% 一致率；`--require-24h` 额外拒绝任何不足 23.99 小时的必需频道。首尾跨度不等于中间无缺失，仍需结合 gap 和补录记录判断。
 
 ## 回放真实数据
 
