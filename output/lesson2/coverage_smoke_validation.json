@@ -1,0 +1,62 @@
+{
+  "data_root": "data/lesson2_smoke",
+  "event_counts": {
+    "spot.BTCUSDT.depth": 69,
+    "spot.BTCUSDT.snapshot": 1,
+    "spot.BTCUSDT.trade": 65,
+    "usdm.BTCUSDT.depth": 69,
+    "usdm.BTCUSDT.snapshot": 1
+  },
+  "first_recv_ts_ms": 1792950373334,
+  "last_recv_ts_ms": 1792950380014,
+  "covered_hours": 0.0018555555555555556,
+  "channel_coverage": {
+    "spot.BTCUSDT.depth": {
+      "event_count": 69,
+      "first_recv_ts_ms": 1792950373638,
+      "last_recv_ts_ms": 1792950379977,
+      "covered_hours": 0.0017608333333333334,
+      "meets_24h_span": false
+    },
+    "spot.BTCUSDT.snapshot": {
+      "event_count": 1,
+      "first_recv_ts_ms": 1792950373334,
+      "last_recv_ts_ms": 1792950373334,
+      "covered_hours": 0.0,
+      "meets_24h_span": false
+    },
+    "spot.BTCUSDT.trade": {
+      "event_count": 65,
+      "first_recv_ts_ms": 1792950373638,
+      "last_recv_ts_ms": 1792950379497,
+      "covered_hours": 0.0016275,
+      "meets_24h_span": false
+    },
+    "usdm.BTCUSDT.depth": {
+      "event_count": 69,
+      "first_recv_ts_ms": 1792950373914,
+      "last_recv_ts_ms": 1792950380014,
+      "covered_hours": 0.0016944444444444444,
+      "meets_24h_span": false
+    },
+    "usdm.BTCUSDT.snapshot": {
+      "event_count": 1,
+      "first_recv_ts_ms": 1792950373901,
+      "last_recv_ts_ms": 1792950373901,
+      "covered_hours": 0.0,
+      "meets_24h_span": false
+    }
+  },
+  "all_required_channels_24h": false,
+  "snapshot_comparisons": 0,
+  "top20_exact_matches": 0,
+  "top20_consistency": null,
+  "gaps_detected": 0,
+  "gap_details": [],
+  "final_synced": {
+    "spot.BTCUSDT": true,
+    "usdm.BTCUSDT": true
+  },
+  "callback_errors": 0,
+  "note": "首尾覆盖不等于中间无缺失；gap 允许在主动断网时出现，关键是通知、暂停并成功恢复。补录频道与时段须单列。"
+}

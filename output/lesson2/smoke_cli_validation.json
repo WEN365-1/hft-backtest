@@ -1,0 +1,23 @@
+{
+  "data_root": "data/lesson2_smoke_minute",
+  "event_counts": {
+    "spot.BTCUSDT.depth": 665,
+    "spot.BTCUSDT.snapshot": 2,
+    "spot.BTCUSDT.trade": 296,
+    "usdm.BTCUSDT.depth": 669,
+    "usdm.BTCUSDT.snapshot": 2
+  },
+  "first_recv_ts_ms": 1792950638794,
+  "last_recv_ts_ms": 1792950706720,
+  "covered_hours": 0.018868333333333334,
+  "snapshot_comparisons": 2,
+  "top20_exact_matches": 0,
+  "top20_consistency": 0.0,
+  "gaps_detected": 0,
+  "final_synced": {
+    "spot.BTCUSDT": true,
+    "usdm.BTCUSDT": true
+  },
+  "callback_errors": 0,
+  "note": "gap 允许在主动断网时出现，关键是通知、暂停并成功恢复；一致率需结合快照时间差复核。"
+}

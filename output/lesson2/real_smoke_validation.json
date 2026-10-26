@@ -1,0 +1,16 @@
+{
+  "data_mode": "real public market smoke test, not 24h validation",
+  "event_counts": {
+    "spot_snapshot": 2,
+    "spot_depth": 665,
+    "usdm_snapshot": 2,
+    "usdm_depth": 669,
+    "spot_trade": 296
+  },
+  "gaps": 0,
+  "spot_synced": true,
+  "usdm_synced": true,
+  "snapshot_comparisons": 2,
+  "exact_matches": 0,
+  "note": "Snapshot comparisons include feed/snapshot timing mismatch; USD-M trade channel requires longer observation."
+}

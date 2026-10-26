@@ -1,0 +1,70 @@
+{
+  "data_root": "data\\lesson2_disconnect_20261026_124314",
+  "event_counts": {
+    "spot.BTCUSDT.depth": 376,
+    "spot.BTCUSDT.gap": 1,
+    "spot.BTCUSDT.snapshot": 2,
+    "spot.BTCUSDT.trade": 119
+  },
+  "first_recv_ts_ms": 1792989795542,
+  "last_recv_ts_ms": 1792989839857,
+  "covered_hours": 0.012309722222222222,
+  "channel_coverage": {
+    "spot.BTCUSDT.depth": {
+      "event_count": 376,
+      "first_recv_ts_ms": 1792989795950,
+      "last_recv_ts_ms": 1792989839793,
+      "covered_hours": 0.01217861111111111,
+      "meets_24h_span": false
+    },
+    "spot.BTCUSDT.gap": {
+      "event_count": 1,
+      "first_recv_ts_ms": 1792989813964,
+      "last_recv_ts_ms": 1792989813964,
+      "covered_hours": 0.0,
+      "meets_24h_span": false
+    },
+    "spot.BTCUSDT.snapshot": {
+      "event_count": 2,
+      "first_recv_ts_ms": 1792989795542,
+      "last_recv_ts_ms": 1792989815545,
+      "covered_hours": 0.0055563888888888885,
+      "meets_24h_span": false
+    },
+    "spot.BTCUSDT.trade": {
+      "event_count": 119,
+      "first_recv_ts_ms": 1792989795950,
+      "last_recv_ts_ms": 1792989839857,
+      "covered_hours": 0.012196388888888889,
+      "meets_24h_span": false
+    }
+  },
+  "all_required_channels_24h": false,
+  "snapshot_comparisons": 0,
+  "top20_exact_matches": 0,
+  "top20_consistency": null,
+  "gaps_detected": 1,
+  "gap_details": [
+    {
+      "market": "spot",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1792989813964,
+      "reason": "ConnectionClosedError(Close(code=1012, reason=''), Close(code=1012, reason='controlled reconnect test'), False)"
+    }
+  ],
+  "final_synced": {
+    "spot.BTCUSDT": true
+  },
+  "callback_errors": 0,
+  "note": "首尾覆盖不等于中间无缺失；gap 允许在主动断网时出现，关键是通知、暂停并成功恢复。补录频道与时段须单列。",
+  "test_type": "controlled_websocket_disconnect_not_whole_machine_network",
+  "disconnect_started_at": "2026-10-26T12:43:27.960448+08:00",
+  "test_ended_at": "2026-10-26T12:44:08.937480+08:00",
+  "close_trigger": "真实首条 WebSocket 收到行情后，以 1012 主动关闭；未注入伪 gap",
+  "events_after_last_gap": {
+    "snapshot": 1,
+    "depth": 246,
+    "trade": 62
+  },
+  "reconnected_and_resynced": true
+}
