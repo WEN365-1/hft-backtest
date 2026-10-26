@@ -92,6 +92,11 @@ def test_backfill_uses_replay_time_and_preserves_receive_time(tmp_path):
     assert events[0]["recv_ts_ms"] == 7_200_000
     assert events[0]["replay_ts_ms"] == 3_600_000
     assert events[0]["source"] == "binance_rest_aggTrades_backfill"
+    from validate_replay import validate
+    report = validate(str(tmp_path), str(tmp_path / "validation.json"))
+    assert report["backfill_integrity"]["rows"] == 1
+    assert report["backfill_integrity"]["valid_rows"] == 1
+    assert report["backfill_integrity"]["invalid_rows"] == 0
 
 
 def test_gap_pauses_then_snapshot_recovers():

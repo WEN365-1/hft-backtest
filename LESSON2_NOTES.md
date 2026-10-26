@@ -106,7 +106,7 @@ on_fill(fill):
 
 ### 真实中途回放补充
 
-截至约 5.30 小时真实主采集的中途回放中，双市场最终均 synced=true、gap=0；同一 `lastUpdateId` 下有效比较 320 次，完全一致 319 次，前 20 档一致率 99.69%。另有 310 张快照因聚合 depth 跨过编号而无法还原事件中间状态，单列为 `skipped_crossed`，未计入分母。这是中途结果，不替代完整 24 小时最终核验。长时间回放还将每文件 batch 降为 128，并在无订阅者时跳过无效订单簿推送载荷构造，避免内存膨胀和无效全簿排序。
+截至约 5.59 小时真实主采集的中途回放中，双市场最终均 synced=true、gap=0；同一 `lastUpdateId` 下有效比较 337 次，完全一致 336 次，前 20 档一致率 99.70%。另有 327 张快照因聚合 depth 跨过编号而无法还原事件中间状态，单列为 `skipped_crossed`，未计入分母。这是中途结果，不替代完整 24 小时最终核验。长时间回放还将每文件 batch 降为 128，并在无订阅者时跳过无效订单簿推送载荷构造，避免内存膨胀和无效全簿排序。
 
 本次 USD-M 实时逐笔成交从 10:53 开始；此前 07:58—10:53 的缺口以 222,914 条币安真实 REST `aggTrades` 补齐。补录与实时数据可通过 `source` 区分：补录 `recv_ts_ms` 是实际下载时间，`replay_ts_ms=T` 是历史成交发生时间，REST 没有的 WebSocket `E` 留空。核验报告将实时 receive 覆盖和含补录的 replay 覆盖分开；前者不能被后者冒充。补录清单为 `output/lesson2/usdm_trade_backfill_manifest.json`，中途报告为 `output/lesson2/real_24h_midrun_backfill_validation.json`。
 

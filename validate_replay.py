@@ -23,6 +23,8 @@ def validate(root: str, output: str) -> dict:
     trade_sources: Counter = Counter()
     first_recv, last_recv, first_replay, last_replay = {}, {}, {}, {}
     gap_details = []
+    backfill_integrity: Counter = Counter()
+    backfill_first = backfill_last = None
     first_ts = last_ts = first_replay_ts = last_replay_ts = None
     for event in ParquetReplaySource(root).events():
         key = (event["market"], event["symbol"], event["event_type"])
@@ -41,6 +43,16 @@ def validate(root: str, output: str) -> dict:
         if event["event_type"] == "trade":
             source = event.get("source") or "binance_websocket_live"
             trade_sources[f"{key[0]}.{key[1]}.{source}"] += 1
+        if event.get("source") == BACKFILL_SOURCE:
+            backfill_integrity["rows"] += 1
+            backfill_first = (replay_ts if backfill_first is None
+                              else min(backfill_first, replay_ts))
+            backfill_last = (replay_ts if backfill_last is None
+                             else max(backfill_last, replay_ts))
+            valid = (event["event_type"] == "trade"
+                     and event.get("replay_ts_ms") == event.get("trade_ts_ms")
+                     and event.get("event_ts_ms") is None and ts >= replay_ts)
+            backfill_integrity["valid_rows" if valid else "invalid_rows"] += 1
         if event["event_type"] == "gap":
             gap_details.append({"market": event["market"], "symbol": event["symbol"],
                                 "recv_ts_ms": ts, "reason": event.get("reason")})
@@ -77,6 +89,14 @@ def validate(root: str, output: str) -> dict:
         "data_root": root,
         "event_counts": {f"{m}.{s}.{k}": v for (m, s, k), v in sorted(counts.items())},
         "trade_source_counts": dict(sorted(trade_sources.items())),
+        "backfill_integrity": {
+            "rows": backfill_integrity["rows"],
+            "valid_rows": backfill_integrity["valid_rows"],
+            "invalid_rows": backfill_integrity["invalid_rows"],
+            "first_replay_ts_ms": backfill_first,
+            "last_replay_ts_ms": backfill_last,
+            "rules": "trade only; replay_ts_ms == trade_ts_ms == T; event_ts_ms is null; recv_ts_ms >= T",
+        },
         "first_recv_ts_ms": first_ts,
         "last_recv_ts_ms": last_ts,
         "covered_hours": (last_ts - first_ts) / 3_600_000 if first_ts is not None else 0,
@@ -125,6 +145,7 @@ def main() -> None:
                        for key, synced in report["final_synced"].items()), f"{market} 最终订单簿未同步"
         assert report["top20_consistency"] is not None, "没有有效快照比较"
         assert report["top20_consistency"] >= 0.95, "前 20 档一致率低于 95%"
+        assert report["backfill_integrity"]["invalid_rows"] == 0, "历史补录时间语义或来源字段异常"
     if args.require_24h:
         assert report["covered_hours"] >= MIN_24H_COVERAGE, "总体实时接收覆盖不足 24 小时"
         assert report["all_required_channels_24h"], "双市场实时 depth/snapshot/trade 未全部覆盖 24 小时"

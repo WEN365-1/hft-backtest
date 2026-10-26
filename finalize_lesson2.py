@@ -57,6 +57,7 @@ def validate(root: Path) -> dict:
     backfill_count = report["trade_source_counts"].get(
         "usdm.BTCUSDT.binance_rest_aggTrades_backfill", 0)
     assert backfill_count == manifest["rows_written"], "补录清单与回放来源数量不一致"
+    assert report["backfill_integrity"]["invalid_rows"] == 0, "补录时间语义或字段不完整"
     assert disconnect["reconnected_and_resynced"] is True
     assert disconnect["gaps_detected"] >= 1
     acceptance = {
