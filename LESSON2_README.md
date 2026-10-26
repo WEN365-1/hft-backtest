@@ -39,7 +39,11 @@ python validate_replay.py --data-root data/lesson2_real_24h --require-pass
 python validate_replay.py --data-root data/lesson2_real_24h --require-pass --require-24h
 # 研究回放口径：允许来源明确的 REST 历史补录参与覆盖计算。
 python validate_replay.py --data-root data/lesson2_real_24h --require-pass --require-replay-24h
+# 两条采集均成功结束后，再跑测试、覆盖最终报告并生成验收摘要：
+python finalize_lesson2.py
 ```
+
+一次性最终核验已安排在 2026-10-27 08:10（Asia/Shanghai）自动执行。`finalize_lesson2.py` 会先检查两条采集状态，任一仍为 running 或失败都会拒绝出最终报告；通过标准为研究回放覆盖 ≥23.99 小时、同编号前 20 档一致率 ≥95%、双市场最终同步、补录数量与清单一致、真实断连后已恢复。输出为 `output/lesson2/real_24h_validation.json` 和 `output/lesson2/final_acceptance.json`。
 
 报告分别包含实时接收与研究回放的首尾时间、覆盖小时数、成交来源数量、gap 明细、最终同步状态和前 20 档一致率。一致率只在本地簿与快照的 `lastUpdateId` 相同时计算；旧快照、被聚合事件跨过的快照和仍等待对齐的快照分别统计，不混入分母。`--require-pass` 检查双市场成交流、最终同步和 95% 一致率；`--require-24h` 只认可实时接收，`--require-replay-24h` 才允许明确标记的补录。首尾跨度不等于中间无缺失，仍需结合 gap 和补录清单判断。
 
