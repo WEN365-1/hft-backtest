@@ -110,7 +110,7 @@ on_fill(fill):
 
 旧批次 USD-M 实时逐笔成交从 10:53 开始；此前 07:58—10:53 的缺口以 222,914 条币安真实 REST `aggTrades` 补齐，完整性检查为 222,914 条有效、0 条无效。补录与实时数据可通过 `source` 区分：补录 `recv_ts_ms` 是实际下载时间，`replay_ts_ms=T` 是历史成交发生时间，REST 没有的 WebSocket `E` 留空。补录清单为 `output/lesson2/usdm_trade_backfill_manifest.json`。这些补录只修复 USD-M 研究成交序列，无法补回现货历史 WebSocket 深度。
 
-修复后现货 WebSocket 改用 443 端口，REST 快照改为异步避免阻塞另一市场，并在采集终点强制再拍快照。新批次使用 `data/lesson2_real_24h_v2`，不与旧数据拼接；只有六个必需频道都实际覆盖至少 23.99 小时且其他指标通过，才会生成成功验收。当前网络检查未通过，状态为 `waiting_for_network`，每小时自动复查，尚未开始新计时。
+修复后现货 WebSocket 改用 443 端口，REST 快照改为异步避免阻塞另一市场，并在采集终点强制再拍快照。新批次使用 `data/lesson2_real_24h_v2`，不与旧数据拼接，已于 2026-10-28 01:10:51（Asia/Shanghai）开始；只有六个必需频道都实际覆盖至少 23.99 小时且其他指标通过，才会生成成功验收。约 1.51 小时中途核验中，现货 depth 54,045 条、trade 72,744 条，U 本位 depth 53,383 条、trade 158,644 条，双市场各 91 张快照；gap=0、回调异常=0、双市场最终均 synced=true。同编号有效比较 93 次，92 次一致，前 20 档一致率约 98.92%。这是中途质量证据，不是 24 小时完成结论；报告为 `output/lesson2/real_24h_v2_midrun_validation.json`。
 
 ### 真实短时冒烟补充
 
@@ -118,7 +118,7 @@ on_fill(fill):
 
 ### 真实主动断连补充
 
-`diagnose_disconnect.py` 在真实现货 WebSocket 收到行情后，以 1012 主动关闭首条连接。实测写入 1 次真实 `ConnectionClosedError` gap，1 秒后重连并重新获取快照；最后 gap 之后收到 1 张 snapshot、246 条 depth、62 条 trade，最终订单簿 synced=true。该结果证明原采集器的真实断连恢复路径有效，但它是独立连接级测试，不是整机断网，也不是 24 小时主采集中的自然断线。
+`diagnose_disconnect.py` 在真实现货 WebSocket 收到行情后，以 1012 主动关闭首条连接。2026-10-28 使用修复后的 443 通道复测，写入 1 次真实 `ConnectionClosedError` gap，1 秒后重连并重新获取快照；最后 gap 之后收到 2 张 snapshot、248 条 depth、154 条 trade，最终订单簿 synced=true。该结果证明修复后的真实断连恢复路径有效，但它是独立连接级测试，不是整机断网，也不是 24 小时主采集中的自然断线。
 
 ## 7. 参考资料
 
