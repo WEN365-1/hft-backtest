@@ -12,6 +12,8 @@ def test_market_specific_trade_streams():
     spot_url, _ = endpoints("spot", "BTCUSDT")
     usdm_url, _ = endpoints("usdm", "BTCUSDT")
     assert "btcusdt@aggTrade" in spot_url
+    assert "stream.binance.com:443" in spot_url
+    assert ":9443" not in spot_url
     assert "btcusdt@trade" in usdm_url
     assert "btcusdt@aggTrade" not in usdm_url
 

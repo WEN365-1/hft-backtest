@@ -30,7 +30,8 @@ def endpoints(market: str, symbol: str) -> tuple[str, str]:
     trade_stream = "aggTrade" if market == "spot" else "trade"
     streams = f"{s}@depth@100ms/{s}@{trade_stream}"
     if market == "spot":
-        return (f"wss://stream.binance.com:9443/stream?streams={streams}",
+        # 443 与常用 HTTPS 端口一致，网络切换后通常比 9443 更容易恢复。
+        return (f"wss://stream.binance.com:443/stream?streams={streams}",
                 "https://api.binance.com/api/v3/depth")
     return (f"wss://fstream.binance.com/stream?streams={streams}",
             "https://fapi.binance.com/fapi/v1/depth")
@@ -56,12 +57,14 @@ async def record_one(market: str, symbol: str, hours: float, store: ParquetEvent
     while time.monotonic() < end:
         rows = []
         try:
-            kwargs = {"ping_interval": 20, "ping_timeout": 60}
+            kwargs = {"ping_interval": 20, "ping_timeout": 60, "open_timeout": 15}
             if proxy:
                 kwargs["proxy"] = proxy
             async with connect(ws_url, **kwargs) as ws:
                 print(f"{market} 已连接，重新获取快照", flush=True)
-                store.write_batch([snapshot(market, symbol, rest_url, proxy)])
+                store.write_batch([
+                    await asyncio.to_thread(snapshot, market, symbol, rest_url, proxy)
+                ])
                 last_flush = time.monotonic()
                 backoff = 1
                 while time.monotonic() < end:
@@ -86,7 +89,9 @@ async def record_one(market: str, symbol: str, hours: float, store: ParquetEvent
                                 "p": data["p"], "q": data["q"], "m": data["m"]})
                     if time.monotonic() - last_flush >= 60:
                         store.write_batch(rows)
-                        store.write_batch([snapshot(market, symbol, rest_url, proxy)])
+                        store.write_batch([
+                            await asyncio.to_thread(snapshot, market, symbol, rest_url, proxy)
+                        ])
                         print(f"{market} 已写 {len(rows)} 条并保存分钟快照", flush=True)
                         rows, last_flush = [], time.monotonic()
         except Exception as exc:
@@ -100,6 +105,11 @@ async def record_one(market: str, symbol: str, hours: float, store: ParquetEvent
         finally:
             if rows:
                 store.write_batch(rows)
+    # 分钟快照通常早于终点几十秒；终点再拍一张，才能严格证明快照频道覆盖全程。
+    store.write_batch([
+        await asyncio.to_thread(snapshot, market, symbol, rest_url, proxy)
+    ])
+    print(f"{market} 已到采集终点并保存终点快照", flush=True)
 
 
 async def record_usdm_trades(symbol: str, hours: float, store: ParquetEventStore,

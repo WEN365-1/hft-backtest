@@ -23,7 +23,7 @@ python record_market.py --market both --symbol BTCUSDT --hours 24 --data-root da
 
 运行期间可主动断网一次，观察日志中的 gap、退避重连、重连快照。真实 24 小时录制需要持续运行 24 小时；本仓库不把三分钟合成演示声称为真实录制结果。
 
-频道说明：现货使用 `aggTrade`，U 本位使用更细粒度的实时逐笔 `trade`，两者统一保存 `E/T/p/q/m`。2026-10-26 的正式主采集从 07:58 开始；因 U 本位 `aggTrade` 实测持续无消息，实时逐笔成交流从 10:53 开始。此前缺口已用 222,914 条币安真实 REST `aggTrades` 补齐，清单见 `output/lesson2/usdm_trade_backfill_manifest.json`。这批数据有独立 `source`，`recv_ts_ms` 是实际下载时间，`replay_ts_ms=T` 仅用于研究回放，不能称为实时接收，也不能把不同成交粒度混称为同一频道。
+频道说明：现货使用 `aggTrade`，U 本位使用更细粒度的实时逐笔 `trade`，两者统一保存 `E/T/p/q/m`。2026-10-26 的旧批次中，U 本位实时逐笔成交流从 10:53 开始，此前缺口已用 222,914 条币安真实 REST `aggTrades` 补齐；但现货在约 5.8 小时后持续重连失败，旧批次因此**未通过**双市场 24 小时验收。补录清单见 `output/lesson2/usdm_trade_backfill_manifest.json`，旧批次失败报告已保存为 `output/lesson2/real_24h_validation_legacy.json`。修复后现货改用 443 端口、快照请求改为异步、终点增加快照；新批次写入独立目录 `data/lesson2_real_24h_v2`，不与旧数据拼接。
 
 如需复现历史补录（已有完整清单时重复执行会直接退出，避免重复写数）：
 
@@ -34,16 +34,15 @@ python backfill_usdm_trades.py --data-root data/lesson2_real_24h
 采集结束后一键生成核验报告：
 
 ```bash
-python validate_replay.py --data-root data/lesson2_real_24h --require-pass
-# 严格实时口径：六个必需频道都必须实际接收满 24 小时；本任务 U 本位成交不满足，预期会拒绝。
-python validate_replay.py --data-root data/lesson2_real_24h --require-pass --require-24h
-# 研究回放口径：允许来源明确的 REST 历史补录参与覆盖计算。
+# 新批次严格实时口径：六个必需频道都必须实际接收满 24 小时。
+python validate_replay.py --data-root data/lesson2_real_24h_v2 --require-pass --require-24h
+# 旧批次仅用于失败复盘；即使允许 REST 补录，也会因现货不足 24 小时而拒绝。
 python validate_replay.py --data-root data/lesson2_real_24h --require-pass --require-replay-24h
-# 两条采集均成功结束后，再跑测试、覆盖最终报告并生成验收摘要：
+# 主采集状态成功后，再跑测试、覆盖最终报告并生成验收摘要：
 python finalize_lesson2.py
 ```
 
-一次性最终核验已安排在 2026-10-27 08:10（Asia/Shanghai）自动执行。`finalize_lesson2.py` 会先检查两条采集状态，任一仍为 running 或失败都会拒绝出最终报告；通过标准为研究回放覆盖 ≥23.99 小时、同编号前 20 档一致率 ≥95%、双市场最终同步、补录数量与清单一致、真实断连后已恢复。输出为 `output/lesson2/real_24h_validation.json` 和 `output/lesson2/final_acceptance.json`。
+新批次已设置为每小时检查双市场 REST 与 WebSocket，只有网络可用时才自动开始 24 小时采集；当前状态为 `waiting_for_network`，不是正在录制。`finalize_lesson2.py` 会检查同批次采集状态，未成功会拒绝出最终报告；通过标准为六个必需频道实时覆盖均 ≥23.99 小时、同编号前 20 档一致率 ≥95%、双市场最终同步、无回调异常、补录（如有）与清单一致、真实断连后已恢复。输出为 `output/lesson2/real_24h_validation.json` 和 `output/lesson2/final_acceptance.json`。
 
 报告分别包含实时接收与研究回放的首尾时间、覆盖小时数、成交来源数量、gap 明细、最终同步状态和前 20 档一致率。一致率只在本地簿与快照的 `lastUpdateId` 相同时计算；旧快照、被聚合事件跨过的快照和仍等待对齐的快照分别统计，不混入分母。`--require-pass` 检查双市场成交流、最终同步和 95% 一致率；`--require-24h` 只认可实时接收，`--require-replay-24h` 才允许明确标记的补录。首尾跨度不等于中间无缺失，仍需结合 gap 和补录清单判断。
 

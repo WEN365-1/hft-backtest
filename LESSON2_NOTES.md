@@ -104,11 +104,13 @@ on_fill(fill):
 - 重置后再比会恒等于 100%，不能证明增量重建正确；健康簿也不因周期快照倒退重置，只有未同步时才重建。
 - 双策略一致性要比较完整事件/样本序列，不能只比较最后一条。
 
-### 真实中途回放补充
+### 旧批次最终回放与失败结论
 
-截至约 5.59 小时真实主采集的中途回放中，双市场最终均 synced=true、gap=0；同一 `lastUpdateId` 下有效比较 337 次，完全一致 336 次，前 20 档一致率 99.70%。另有 327 张快照因聚合 depth 跨过编号而无法还原事件中间状态，单列为 `skipped_crossed`，未计入分母。这是中途结果，不替代完整 24 小时最终核验。长时间回放还将每文件 batch 降为 128，并在无订阅者时跳过无效订单簿推送载荷构造，避免内存膨胀和无效全簿排序。
+旧批次完整核验表明：总体时间跨度虽约 24 小时，但现货 depth、snapshot、trade 均只覆盖约 5.80 小时，之后持续重连失败，因此 `all_required_channels_24h=false`，即使允许历史补录，`all_required_replay_channels_24h` 仍为 false。同一 `lastUpdateId` 下有效比较 374 次，完全一致 373 次，前 20 档一致率约 99.73%；1,396 张被聚合事件跨过编号的快照单列，未计入分母。双市场最终订单簿虽然都能同步，但这不能弥补现货长时间无数据。旧主任务还在结束后的旧版自动回放阶段超时，故不能称为成功任务。证据保存在 `output/lesson2/real_24h_validation_legacy.json`。
 
-本次 USD-M 实时逐笔成交从 10:53 开始；此前 07:58—10:53 的缺口以 222,914 条币安真实 REST `aggTrades` 补齐。补录与实时数据可通过 `source` 区分：补录 `recv_ts_ms` 是实际下载时间，`replay_ts_ms=T` 是历史成交发生时间，REST 没有的 WebSocket `E` 留空。核验报告将实时 receive 覆盖和含补录的 replay 覆盖分开；前者不能被后者冒充。补录清单为 `output/lesson2/usdm_trade_backfill_manifest.json`，中途报告为 `output/lesson2/real_24h_midrun_backfill_validation.json`。
+旧批次 USD-M 实时逐笔成交从 10:53 开始；此前 07:58—10:53 的缺口以 222,914 条币安真实 REST `aggTrades` 补齐，完整性检查为 222,914 条有效、0 条无效。补录与实时数据可通过 `source` 区分：补录 `recv_ts_ms` 是实际下载时间，`replay_ts_ms=T` 是历史成交发生时间，REST 没有的 WebSocket `E` 留空。补录清单为 `output/lesson2/usdm_trade_backfill_manifest.json`。这些补录只修复 USD-M 研究成交序列，无法补回现货历史 WebSocket 深度。
+
+修复后现货 WebSocket 改用 443 端口，REST 快照改为异步避免阻塞另一市场，并在采集终点强制再拍快照。新批次使用 `data/lesson2_real_24h_v2`，不与旧数据拼接；只有六个必需频道都实际覆盖至少 23.99 小时且其他指标通过，才会生成成功验收。当前网络检查未通过，状态为 `waiting_for_network`，每小时自动复查，尚未开始新计时。
 
 ### 真实短时冒烟补充
 
