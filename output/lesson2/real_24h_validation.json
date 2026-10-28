@@ -1,0 +1,198 @@
+{
+  "data_root": "C:\\Users\\HP\\Desktop\\DBC_project\\Binance\\hft-backtest\\data\\lesson2_real_24h_v2",
+  "event_counts": {
+    "spot.BTCUSDT.depth": 857475,
+    "spot.BTCUSDT.gap": 5,
+    "spot.BTCUSDT.snapshot": 1429,
+    "spot.BTCUSDT.trade": 800124,
+    "usdm.BTCUSDT.depth": 846380,
+    "usdm.BTCUSDT.gap": 5,
+    "usdm.BTCUSDT.snapshot": 1428,
+    "usdm.BTCUSDT.trade": 2287977
+  },
+  "trade_source_counts": {
+    "spot.BTCUSDT.binance_websocket_live": 800124,
+    "usdm.BTCUSDT.binance_websocket_live": 2287977
+  },
+  "backfill_integrity": {
+    "rows": 0,
+    "valid_rows": 0,
+    "invalid_rows": 0,
+    "first_replay_ts_ms": null,
+    "last_replay_ts_ms": null,
+    "rules": "trade only; replay_ts_ms == trade_ts_ms == T; event_ts_ms is null; recv_ts_ms >= T"
+  },
+  "first_recv_ts_ms": 1793121051944,
+  "last_recv_ts_ms": 1793207458172,
+  "covered_hours": 24.00173,
+  "first_replay_ts_ms": 1793121051944,
+  "last_replay_ts_ms": 1793207458172,
+  "replay_covered_hours": 24.00173,
+  "channel_coverage": {
+    "spot.BTCUSDT.depth": {
+      "event_count": 857475,
+      "first_recv_ts_ms": 1793121052470,
+      "last_recv_ts_ms": 1793207451457,
+      "covered_hours": 23.99971861111111,
+      "meets_24h_span": true,
+      "first_replay_ts_ms": 1793121052470,
+      "last_replay_ts_ms": 1793207451457,
+      "replay_covered_hours": 23.99971861111111,
+      "meets_replay_24h_span": true
+    },
+    "spot.BTCUSDT.gap": {
+      "event_count": 5,
+      "first_recv_ts_ms": 1793127416392,
+      "last_recv_ts_ms": 1793127471975,
+      "covered_hours": 0.015439722222222223,
+      "meets_24h_span": false,
+      "first_replay_ts_ms": 1793127416392,
+      "last_replay_ts_ms": 1793127471975,
+      "replay_covered_hours": 0.015439722222222223,
+      "meets_replay_24h_span": false
+    },
+    "spot.BTCUSDT.snapshot": {
+      "event_count": 1429,
+      "first_recv_ts_ms": 1793121051944,
+      "last_recv_ts_ms": 1793207458172,
+      "covered_hours": 24.00173,
+      "meets_24h_span": true,
+      "first_replay_ts_ms": 1793121051944,
+      "last_replay_ts_ms": 1793207458172,
+      "replay_covered_hours": 24.00173,
+      "meets_replay_24h_span": true
+    },
+    "spot.BTCUSDT.trade": {
+      "event_count": 800124,
+      "first_recv_ts_ms": 1793121052470,
+      "last_recv_ts_ms": 1793207450962,
+      "covered_hours": 23.999581111111112,
+      "meets_24h_span": true,
+      "first_replay_ts_ms": 1793121052470,
+      "last_replay_ts_ms": 1793207450962,
+      "replay_covered_hours": 23.999581111111112,
+      "meets_replay_24h_span": true
+    },
+    "usdm.BTCUSDT.depth": {
+      "event_count": 846380,
+      "first_recv_ts_ms": 1793121052474,
+      "last_recv_ts_ms": 1793207451338,
+      "covered_hours": 23.999684444444444,
+      "meets_24h_span": true,
+      "first_replay_ts_ms": 1793121052474,
+      "last_replay_ts_ms": 1793207451338,
+      "replay_covered_hours": 23.999684444444444,
+      "meets_replay_24h_span": true
+    },
+    "usdm.BTCUSDT.gap": {
+      "event_count": 5,
+      "first_recv_ts_ms": 1793127423630,
+      "last_recv_ts_ms": 1793127479156,
+      "covered_hours": 0.015423888888888888,
+      "meets_24h_span": false,
+      "first_replay_ts_ms": 1793127423630,
+      "last_replay_ts_ms": 1793127479156,
+      "replay_covered_hours": 0.015423888888888888,
+      "meets_replay_24h_span": false
+    },
+    "usdm.BTCUSDT.snapshot": {
+      "event_count": 1428,
+      "first_recv_ts_ms": 1793121052090,
+      "last_recv_ts_ms": 1793207457502,
+      "covered_hours": 24.001503333333332,
+      "meets_24h_span": true,
+      "first_replay_ts_ms": 1793121052090,
+      "last_replay_ts_ms": 1793207457502,
+      "replay_covered_hours": 24.001503333333332,
+      "meets_replay_24h_span": true
+    },
+    "usdm.BTCUSDT.trade": {
+      "event_count": 2287977,
+      "first_recv_ts_ms": 1793121052474,
+      "last_recv_ts_ms": 1793207451432,
+      "covered_hours": 23.999710555555556,
+      "meets_24h_span": true,
+      "first_replay_ts_ms": 1793121052474,
+      "last_replay_ts_ms": 1793207451432,
+      "replay_covered_hours": 23.999710555555556,
+      "meets_replay_24h_span": true
+    }
+  },
+  "all_required_channels_24h": true,
+  "all_required_replay_channels_24h": true,
+  "snapshot_comparisons": 1457,
+  "snapshot_skipped_stale": 0,
+  "snapshot_skipped_crossed": 1393,
+  "snapshot_pending": 2,
+  "top20_exact_matches": 1455,
+  "top20_consistency": 0.9986273164035689,
+  "gaps_detected": 11,
+  "gap_details": [
+    {
+      "market": "spot",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127416392,
+      "reason": "SSLError(MaxRetryError(\"HTTPSConnectionPool(host='api.binance.com', port=443): Max retries exceeded with url: /api/v3/depth?symbol=BTCUSDT&limit=1000 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1010)')))\"))"
+    },
+    {
+      "market": "usdm",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127423630,
+      "reason": "SSLError(MaxRetryError(\"HTTPSConnectionPool(host='fapi.binance.com', port=443): Max retries exceeded with url: /fapi/v1/depth?symbol=BTCUSDT&limit=1000 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1010)')))\"))"
+    },
+    {
+      "market": "spot",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127427525,
+      "reason": "ConnectionResetError()"
+    },
+    {
+      "market": "usdm",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127434767,
+      "reason": "ConnectionResetError()"
+    },
+    {
+      "market": "spot",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127439683,
+      "reason": "ConnectionResetError()"
+    },
+    {
+      "market": "usdm",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127446892,
+      "reason": "ConnectionResetError()"
+    },
+    {
+      "market": "spot",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127453824,
+      "reason": "ConnectionResetError()"
+    },
+    {
+      "market": "usdm",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127461013,
+      "reason": "ConnectionResetError()"
+    },
+    {
+      "market": "spot",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127471975,
+      "reason": "ConnectionResetError()"
+    },
+    {
+      "market": "usdm",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127479156,
+      "reason": "ConnectionResetError()"
+    }
+  ],
+  "final_synced": {
+    "spot.BTCUSDT": true,
+    "usdm.BTCUSDT": true
+  },
+  "callback_errors": 0,
+  "note": "receive 覆盖只表示本地实时接收；replay 覆盖可含明确标记的 REST 历史补录。一致率只比较同一 lastUpdateId；首尾覆盖不等于中间无缺失。"
+}

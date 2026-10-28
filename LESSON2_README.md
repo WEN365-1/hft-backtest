@@ -42,7 +42,7 @@ python validate_replay.py --data-root data/lesson2_real_24h --require-pass --req
 python finalize_lesson2.py
 ```
 
-新批次已于 2026-10-28 01:10:51（Asia/Shanghai）启动，数据写入 `data/lesson2_real_24h_v2`，预计 2026-10-29 01:10 左右结束采集，随后自动严格验收。约 1.51 小时的中途检查显示：双市场六类事件均持续写入、gap=0、最终均同步，同编号前 20 档比较 93 次、92 次一致，一致率约 98.92%；这只是中途结果，不提前宣布 24 小时完成。`finalize_lesson2.py` 会检查同批次采集状态，未成功会拒绝出最终报告；通过标准为六个必需频道实时覆盖均 ≥23.99 小时、同编号前 20 档一致率 ≥95%、双市场最终同步、无回调异常、补录（如有）与清单一致、真实断连后已恢复。输出为 `output/lesson2/real_24h_validation.json` 和 `output/lesson2/final_acceptance.json`。
+新批次已于 2026-10-29 01:15:54（Asia/Shanghai）完成最终严格验收，结果为 `status=passed`。六个必需频道的实时覆盖均 ≥23.99 小时，总体跨度 24.00173 小时，未使用历史补录。现货写入 depth 857,475 条、trade 800,124 条、snapshot 1,429 张；U 本位写入 depth 846,380 条、trade 2,287,977 条、snapshot 1,428 张。同编号前 20 档比较 1,457 次，1,455 次一致，一致率约 99.86%；双市场最终均同步、回调异常为 0。主采集期间两个市场各记录 5 次连接 gap，随后均恢复。最终报告为 `output/lesson2/real_24h_validation.json` 和 `output/lesson2/final_acceptance.json`。
 
 报告分别包含实时接收与研究回放的首尾时间、覆盖小时数、成交来源数量、gap 明细、最终同步状态和前 20 档一致率。一致率只在本地簿与快照的 `lastUpdateId` 相同时计算；旧快照、被聚合事件跨过的快照和仍等待对齐的快照分别统计，不混入分母。`--require-pass` 检查双市场成交流、最终同步和 95% 一致率；`--require-24h` 只认可实时接收，`--require-replay-24h` 才允许明确标记的补录。首尾跨度不等于中间无缺失，仍需结合 gap 和补录清单判断。
 
