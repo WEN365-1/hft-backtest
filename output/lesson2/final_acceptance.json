@@ -1,7 +1,7 @@
 {
   "status": "passed",
-  "generated_at_utc": "2026-10-28T17:15:54.445680+00:00",
-  "data_root": "C:\\Users\\HP\\Desktop\\DBC_project\\Binance\\hft-backtest\\data\\lesson2_real_24h_v2",
+  "generated_at_utc": "2026-11-02T02:13:18.043205+00:00",
+  "data_root": "data/lesson2_real_24h_v2",
   "capture_states": {
     "capture_24h_status.json": "succeeded"
   },

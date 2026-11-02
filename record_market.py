@@ -12,29 +12,14 @@ import time
 
 import requests
 
+from sim_exchange.endpoints import endpoints
+from sim_exchange.live_source import now_ms
 from sim_exchange.storage import ParquetEventStore
 
 try:
     from websockets.asyncio.client import connect
 except ImportError:
     from websockets import connect
-
-
-def now_ms() -> int:
-    return int(time.time() * 1000)
-
-
-def endpoints(market: str, symbol: str) -> tuple[str, str]:
-    s = symbol.lower()
-    # 实测 USD-M 的 aggTrade 持续无消息，而同主机逐笔 trade 正常；保留相同 E/T/p/q/m。
-    trade_stream = "aggTrade" if market == "spot" else "trade"
-    streams = f"{s}@depth@100ms/{s}@{trade_stream}"
-    if market == "spot":
-        # 443 与常用 HTTPS 端口一致，网络切换后通常比 9443 更容易恢复。
-        return (f"wss://stream.binance.com:443/stream?streams={streams}",
-                "https://api.binance.com/api/v3/depth")
-    return (f"wss://fstream.binance.com/stream?streams={streams}",
-            "https://fapi.binance.com/fapi/v1/depth")
 
 
 def snapshot(market: str, symbol: str, rest_url: str, proxy: str | None) -> dict:

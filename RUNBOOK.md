@@ -1,6 +1,8 @@
-# 抓取操作手册（手动执行版）
+# 第一课抓取操作手册（手动执行版）
 
-> 目标：录 30 分钟 BTCUSDT 真实行情（depth@100ms + aggTrade），落盘为 Parquet。
+> **适用范围：仅第一课 `recorder.py` 流程。** 第二课双市场采集、回放和 24 小时验收请使用 `LESSON2_README.md`，不要混用两套数据目录与命令。
+>
+> 第一课目标：录 30 分钟 BTCUSDT 真实行情（depth@100ms + aggTrade），落盘为 Parquet。
 
 ## 第 0 步：准备
 
@@ -9,11 +11,7 @@
 3. 打开 VPN / 代理，切到 **全局模式（Global / TUN 模式）**。
    - Clash 类：打开"全局"或"TUN 模式"，本地端口通常是 `7890`
    - 游戏加速器（如雷神）通常只加速游戏，**不一定代理 Python 流量**——如果体检失败，换 Clash/v2ray 类工具
-4. 打开终端，进入项目目录：
-
-```bash
-cd C:\Users\Administrator\Desktop\DBC_project\hft-backtest
-```
+4. 打开终端，进入你本机的 `hft-backtest` 项目根目录（不要照抄其他人的绝对路径）。
 
 ## 第 1 步：网络体检（必须先做）
 

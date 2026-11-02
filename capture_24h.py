@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-PROJECT = Path(r"C:\Users\HP\Desktop\DBC_project\Binance\hft-backtest")
+PROJECT = Path(__file__).resolve().parent
 DATA_ROOT = PROJECT / "data" / "lesson2_real_24h_v2"
 STATUS_FILE = PROJECT / "output" / "lesson2" / "capture_24h_status.json"
 
@@ -14,7 +14,7 @@ STATUS_FILE = PROJECT / "output" / "lesson2" / "capture_24h_status.json"
 def write_status(state: str, **extra) -> None:
     STATUS_FILE.parent.mkdir(parents=True, exist_ok=True)
     payload = {"state": state, "updatedAt": datetime.now().astimezone().isoformat(),
-               "dataRoot": str(DATA_ROOT), **extra}
+               "dataRoot": DATA_ROOT.relative_to(PROJECT).as_posix(), **extra}
     STATUS_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 

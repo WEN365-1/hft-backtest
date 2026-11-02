@@ -12,7 +12,7 @@ python demo_sim_exchange.py --verbose
 
 演示输出：`output/lesson2/demo_validation.json`。合成数据只验证工程机制，不用于评价策略收益。
 
-当前离线验证：16 项测试通过；双市场前 20 档一致率 100%；2 次 gap 均暂停并恢复；双策略完整样本一致。
+当前离线验证：20 项测试通过；双市场前 20 档一致率 100%；2 次 gap 均暂停并恢复；双策略完整样本一致。新增测试覆盖小时分区裁剪、回放速度和实时源接口替换。
 
 ## 真实 24 小时采集
 
@@ -23,7 +23,7 @@ python record_market.py --market both --symbol BTCUSDT --hours 24 --data-root da
 
 运行期间可主动断网一次，观察日志中的 gap、退避重连、重连快照。真实 24 小时录制需要持续运行 24 小时；本仓库不把三分钟合成演示声称为真实录制结果。
 
-频道说明：现货使用 `aggTrade`，U 本位使用更细粒度的实时逐笔 `trade`，两者统一保存 `E/T/p/q/m`。2026-10-26 的旧批次中，U 本位实时逐笔成交流从 10:53 开始，此前缺口已用 222,914 条币安真实 REST `aggTrades` 补齐；但现货在约 5.8 小时后持续重连失败，旧批次因此**未通过**双市场 24 小时验收。补录清单见 `output/lesson2/usdm_trade_backfill_manifest.json`，旧批次失败报告已保存为 `output/lesson2/real_24h_validation_legacy.json`。修复后现货改用 443 端口、快照请求改为异步、终点增加快照；新批次写入独立目录 `data/lesson2_real_24h_v2`，不与旧数据拼接。
+频道说明：现货使用 `aggTrade`，U 本位使用更细粒度的实时逐笔 `trade`，两者统一保存 `E/T/p/q/m`。2026-10-26 的旧批次中，U 本位实时逐笔成交流从 10:53 开始，此前缺口已用 222,914 条币安真实 REST `aggTrades` 补齐；但现货在约 5.8 小时后持续重连失败，旧批次因此**未通过**双市场 24 小时验收。补录清单见 `output/lesson2/usdm_trade_backfill_manifest.json`，旧批次失败摘要保持为 `output/lesson2/legacy_attempt_summary.md`；约 291 KB 的完整旧报告只留本地，不进入 PR。修复后现货改用 443 端口、快照请求改为异步、终点增加快照；新批次写入独立目录 `data/lesson2_real_24h_v2`，不与旧数据拼接。
 
 如需复现历史补录（已有完整清单时重复执行会直接退出，避免重复写数）：
 
@@ -60,7 +60,8 @@ python diagnose_disconnect.py
 from sim_exchange import SimExchange, ParquetReplaySource
 from sim_exchange.strategies import OneSecondMetricsStrategy
 
-source = ParquetReplaySource("data/lesson2_real", start_ms=None, end_ms=None)
+# speed=0 尽快回放；speed=1 按接收时差原速，speed=2 表示两倍速。
+source = ParquetReplaySource("data/lesson2_real_24h_v2", speed=0)
 ex = SimExchange(source)
 strategy = OneSecondMetricsStrategy()
 ex.subscribe(strategy, [
@@ -71,18 +72,30 @@ stats = ex.run()
 print(stats.consistency, ex.book("usdm", "BTCUSDT", depth=20))
 ```
 
-实时接入只需提供同样按 `recv_ts_ms` 顺序产生事件的 `events()` 数据源，策略回调不用改。
+回放器先按 `start_ms/end_ms` 裁剪小时分区，每次只归并当前小时的文件，再按文件 batch 读取；24 小时总文件数不再决定同时打开的文件数。存储层保证分区小时与 `replay_time_ms` 对应，因此不会为了裁剪牺牲时间顺序。
+
+## 切换真实实时源
+
+```bash
+# 只读公开行情；默认演示 60 秒，网络受限时按本机情况加 --proxy。
+python demo_live_source.py --market spot --duration 60 --verbose
+```
+
+`BinanceWebSocketSource` 与 `ParquetReplaySource` 都实现同步 `events()`。实时源负责连接、分钟快照、gap 和退避重连；`SimExchange`、订单簿与 `OneSecondMetricsStrategy` 完全不变。`sim_exchange/endpoints.py` 是零第三方依赖的订阅地址模块，纯逻辑测试不再需要导入 `record_market.py` 或加载 `websockets`。
 
 ## 文件导航
 
 | 路径 | 内容 |
 |---|---|
 | `sim_exchange/` | 模拟交易所包 |
+| `sim_exchange/live_source.py` | 可替换的真实 WebSocket 实时源 |
+| `sim_exchange/endpoints.py` | 无第三方依赖的行情地址与成交频道规则 |
 | `record_market.py` | 双市场真实采集 |
 | `backfill_usdm_trades.py` | USD-M 真实历史成交补录与来源清单 |
 | `validate_replay.py` | 实时 / 研究回放双口径核验 |
 | `demo_sim_exchange.py` | 离线可重复演示 |
-| `tests/test_sim_exchange.py` | 16 项关键测试 |
+| `demo_live_source.py` | 只换 source 的真实实时演示 |
+| `tests/test_sim_exchange.py` | 20 项关键测试 |
 | `LESSON2_NOTES.md` | 成交、排队、延迟与撮合伪代码 |
 | `docs/system_architecture.svg` | 系统结构图 |
 | `第二课_学习与汇报.html` | 术语 + 大白话学习与汇报材料 |
@@ -90,6 +103,6 @@ print(stats.consistency, ex.book("usdm", "BTCUSDT", depth=20))
 ## 已知边界
 
 - 本课不实现下单、撮合、账户和风控，只预留接口。
-- 流式读取按文件 batch 控制内存；大量小文件仍会提高打开文件与堆维护成本，生产环境应做分区裁剪与文件压缩合并。
+- 回放已按小时裁剪并分批归并；单小时内大量小文件仍有打开与堆维护成本，生产环境可继续压缩合并。
 - Parquet 是列式格式，批次越小写入开销越大；当前“分钟写盘”在崩溃时最多损失尚未 flush 的约一分钟数据。
-- 演示为合成数据；真实一致率、断线恢复与 24 小时稳定性须以真实录制日志复核。
+- 演示为合成数据；真实一致率、断线恢复与 24 小时稳定性须以真实录制日志复核。实时源示例的接口已离线测试，但每次实网表现仍取决于当时网络与币安服务。

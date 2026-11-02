@@ -14,12 +14,22 @@ MANIFEST = OUTPUT / "usdm_trade_backfill_manifest.json"
 DISCONNECT = OUTPUT / "controlled_disconnect_validation.json"
 
 
-PROJECT = Path(r"C:\Users\HP\Desktop\DBC_project\Binance\hft-backtest")
-
-
 def project_root() -> Path:
-    # 一次性任务的工作目录不是项目根目录，必须回到真实项目读取代码和数据。
-    return PROJECT if PROJECT.exists() else Path(__file__).resolve().parent
+    # 从脚本位置定位项目，复制到其他机器或目录后仍可运行。
+    return Path(__file__).resolve().parent
+
+
+def portable_path(path: Path, root: Path) -> str:
+    """报告中优先保存仓库相对路径，避免泄露本机目录并提升可复现性。"""
+    try:
+        return path.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return str(path.resolve())
+
+
+def resolve_data_root(value: str, root: Path) -> Path:
+    path = Path(value)
+    return path.resolve() if path.is_absolute() else (root / path).resolve()
 
 
 def read_json(path: Path) -> dict:
@@ -34,12 +44,13 @@ def require_capture_finished(root: Path) -> tuple[dict, Path]:
         raise RuntimeError(f"主采集尚未成功结束，当前 state={state!r}；不生成伪最终报告")
     if not main.get("dataRoot"):
         raise RuntimeError("主采集状态缺少 dataRoot，拒绝猜测数据目录")
-    data_root = Path(main["dataRoot"]).resolve()
+    data_root = resolve_data_root(main["dataRoot"], root)
     supplement_path = root / OUTPUT / "capture_usdm_trade_supplement_status.json"
     if supplement_path.exists():
         supplement = read_json(supplement_path)
         # 只有属于同一批数据的补充采集才参与验收，旧任务状态不得污染新批次。
-        if supplement.get("dataRoot") and Path(supplement["dataRoot"]).resolve() == data_root:
+        if (supplement.get("dataRoot")
+                and resolve_data_root(supplement["dataRoot"], root) == data_root):
             supplement_state = supplement.get("state")
             states["capture_usdm_trade_supplement_status.json"] = supplement_state
             if supplement_state not in {"succeeded", "completed"}:
@@ -48,7 +59,8 @@ def require_capture_finished(root: Path) -> tuple[dict, Path]:
 
 
 def run_checked(command: list[str], root: Path, timeout: int) -> None:
-    completed = subprocess.run(command, cwd=root, text=True, capture_output=True, timeout=timeout)
+    completed = subprocess.run(command, cwd=root, text=True, encoding="utf-8",
+                               errors="replace", capture_output=True, timeout=timeout)
     if completed.returncode:
         tail = (completed.stdout + "\n" + completed.stderr)[-6000:]
         raise RuntimeError(f"命令失败（{completed.returncode}）：{' '.join(command)}\n{tail}")
@@ -74,16 +86,17 @@ def validate(root: Path) -> dict:
     used_manifest = None
     if manifest_path.exists():
         candidate = read_json(manifest_path)
-        if candidate.get("data_root") and Path(candidate["data_root"]).resolve() == data_root:
+        if (candidate.get("data_root")
+                and resolve_data_root(candidate["data_root"], root) == data_root):
             assert candidate["status"] == "complete"
             assert backfill_count == candidate["rows_written"], "补录清单与回放来源数量不一致"
-            used_manifest = str(MANIFEST)
+            used_manifest = MANIFEST.as_posix()
     assert disconnect["reconnected_and_resynced"] is True
     assert disconnect["gaps_detected"] >= 1
     acceptance = {
         "status": "passed",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
-        "data_root": str(data_root),
+        "data_root": portable_path(data_root, root),
         "capture_states": capture_states,
         "tests": "pytest -q passed",
         "research_replay_24h": report["all_required_replay_channels_24h"],

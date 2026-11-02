@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import pyarrow.parquet as pq
 
-from sim_exchange import ParquetEventStore, ParquetReplaySource, SimExchange
+from sim_exchange import (BinanceWebSocketSource, ParquetEventStore,
+                          ParquetReplaySource, SimExchange)
+from sim_exchange.endpoints import endpoints
+from sim_exchange.live_source import message_to_event
 from sim_exchange.orderbook import SyncedOrderBook
 from sim_exchange.strategies import OneSecondMetricsStrategy
-from record_market import endpoints
 
 
 def test_market_specific_trade_streams():
@@ -215,3 +217,56 @@ def test_first_spot_event_can_end_exactly_at_snapshot_id():
     assert book.apply_depth(event) == "ok"
     following = depth(uid=101)
     assert book.apply_depth(following) == "ok"
+
+
+def test_replay_prunes_hours_before_opening_files(tmp_path, monkeypatch):
+    store = ParquetEventStore(tmp_path)
+    store.write_batch([snap(ts=10), snap(ts=3_600_010)])
+    source = ParquetReplaySource(tmp_path, start_ms=3_600_000, end_ms=3_600_020)
+    opened = []
+    original = source._file_rows
+
+    def tracking(path, batch_size=128):
+        opened.append(path)
+        return original(path, batch_size)
+
+    monkeypatch.setattr(source, "_file_rows", tracking)
+    assert [x["recv_ts_ms"] for x in source.events()] == [3_600_010]
+    assert len(opened) == 1 and "hour=01" in opened[0].parts
+
+
+def test_replay_speed_uses_replay_time_without_real_sleep(tmp_path, monkeypatch):
+    store = ParquetEventStore(tmp_path)
+    store.write_batch([snap(ts=0), snap(ts=100)])
+    sleeps = []
+    monkeypatch.setattr("sim_exchange.sources.time.monotonic", lambda: 1_000.0)
+    monkeypatch.setattr("sim_exchange.sources.time.sleep", sleeps.append)
+    source = ParquetReplaySource(tmp_path, speed=2)
+    assert len(list(source.events())) == 2
+    assert len(sleeps) == 1 and abs(sleeps[0] - 0.05) < 1e-9
+
+
+def test_live_message_uses_same_unified_trade_schema():
+    raw = ('{"stream":"btcusdt@trade","data":'
+           '{"E":1,"T":2,"p":"100","q":"0.2","m":false}}')
+    event = message_to_event("usdm", "BTCUSDT", raw, 3)
+    assert event == {"market": "usdm", "symbol": "BTCUSDT", "event_type": "trade",
+                     "recv_ts_ms": 3, "event_ts_ms": 1, "trade_ts_ms": 2,
+                     "p": "100", "q": "0.2", "m": False}
+
+
+def test_live_source_contract_runs_without_changing_exchange_or_strategy():
+    class FakeLiveSource(BinanceWebSocketSource):
+        def __init__(self):
+            pass  # 不建立网络连接，只验证实时源的同步 events() 桥接契约。
+
+        async def _stream(self):
+            yield snap()
+            yield depth()
+
+    strategy = OneSecondMetricsStrategy(verbose=False)
+    ex = SimExchange(FakeLiveSource())
+    ex.subscribe(strategy, ["spot.BTCUSDT.book"])
+    stats = ex.run()
+    assert stats.callback_errors == 0
+    assert ex.book("spot", "BTCUSDT")["last_update_id"] == 101

@@ -8,8 +8,12 @@ data/
 *.pem
 secrets.*
 
-# 长时间采集的运行状态是动态文件，不提交
+# 长时间采集状态、失败长报告和本地预览不提交
 output/lesson2/*status.json
+output/lesson2/*progress*.json
+output/lesson2/real_24h_validation_legacy.json
+output/lesson2/*preview.png
+output/lesson2/*.log
 
 # Python
 __pycache__/

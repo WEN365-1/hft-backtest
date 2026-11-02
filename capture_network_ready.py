@@ -37,7 +37,8 @@ async def _all_ready() -> bool:
 
 
 def should_fire(ctx) -> bool:
-    status_path = Path(r"C:\Users\HP\Desktop\DBC_project\Binance\hft-backtest\output\lesson2\capture_24h_status.json")
+    project = Path(__file__).resolve().parent
+    status_path = project / "output" / "lesson2" / "capture_24h_status.json"
     try:
         if status_path.exists():
             status = json.loads(status_path.read_text(encoding="utf-8"))
