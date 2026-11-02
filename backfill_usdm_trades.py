@@ -114,7 +114,7 @@ def backfill(root: str, symbol: str, manifest_path: str, proxy: str | None,
     }
     manifest.update({
         "status": "running", "market": "usdm", "symbol": symbol,
-        "data_root": str(Path(root).resolve()), "source": SOURCE,
+        "data_root": Path(root).as_posix(), "source": SOURCE,
         "rest_endpoint": URL,
         "requested_start_utc": iso_ms(start_ms),
         "end_exclusive_utc": iso_ms(end_exclusive),

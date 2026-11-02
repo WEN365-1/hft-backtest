@@ -30,7 +30,7 @@ def run(ctx):
     try:
         asyncio.run(run_all(["spot", "usdm"], "BTCUSDT", 24, store, None))
         report_path = PROJECT / "output" / "lesson2" / "real_24h_validation.json"
-        report = validate(str(DATA_ROOT), str(report_path))
+        report = validate(DATA_ROOT.relative_to(PROJECT).as_posix(), str(report_path))
         assert report["all_required_channels_24h"], "六个必需频道未全部实时覆盖 24 小时"
         assert report["top20_consistency"] is not None and report["top20_consistency"] >= 0.95, \
             "同编号前 20 档一致率低于 95% 或没有有效比较"

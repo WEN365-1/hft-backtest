@@ -11,7 +11,7 @@
   "status": "complete",
   "market": "usdm",
   "symbol": "BTCUSDT",
-  "data_root": "C:\\Users\\HP\\Desktop\\DBC_project\\Binance\\hft-backtest\\data\\lesson2_real_24h",
+  "data_root": "data/lesson2_real_24h",
   "source": "binance_rest_aggTrades_backfill",
   "rest_endpoint": "https://fapi.binance.com/fapi/v1/aggTrades",
   "requested_start_utc": "2026-10-25T23:58:15.878000+00:00",

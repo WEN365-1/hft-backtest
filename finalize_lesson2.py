@@ -70,8 +70,9 @@ def validate(root: Path) -> dict:
     capture_states, data_root = require_capture_finished(root)
     run_checked([sys.executable, "-m", "pytest", "-q"], root, 300)
     # 新批次必须满足严格实时口径；历史补录不能替代任何必需频道的实时 24 小时覆盖。
-    run_checked([sys.executable, "validate_replay.py", "--data-root", str(data_root),
-                 "--output", str(REPORT), "--require-pass", "--require-24h"], root, 2400)
+    run_checked([sys.executable, "validate_replay.py", "--data-root",
+                 portable_path(data_root, root), "--output", REPORT.as_posix(),
+                 "--require-pass", "--require-24h"], root, 2400)
     report = read_json(root / REPORT)
     disconnect = read_json(root / DISCONNECT)
     assert report["all_required_channels_24h"], "六个必需频道未全部实时覆盖 24 小时"
@@ -120,7 +121,7 @@ def validate(root: Path) -> dict:
             "main_capture_task_timed_out_in_legacy_validation": True,
             "note": "旧批次现货仅约 5.8 小时，主任务在旧版收尾回放阶段超时；新批次独立采集，不与旧数据拼接。",
         },
-        "report": str(REPORT),
+        "report": REPORT.as_posix(),
         "backfill_manifest": used_manifest,
     }
     (root / ACCEPTANCE).write_text(json.dumps(acceptance, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -133,8 +134,8 @@ def run(ctx=None) -> dict:
     artifact = {
         "summary": "最终严格核验通过；研究回放与实时接收覆盖已分别披露。",
         "status": acceptance["status"],
-        "reportPath": str(REPORT),
-        "acceptancePath": str(ACCEPTANCE),
+        "reportPath": REPORT.as_posix(),
+        "acceptancePath": ACCEPTANCE.as_posix(),
         "liveCapture24h": acceptance["live_capture_24h"],
         "researchReplay24h": acceptance["research_replay_24h"],
         "top20Consistency": acceptance["top20_consistency"],

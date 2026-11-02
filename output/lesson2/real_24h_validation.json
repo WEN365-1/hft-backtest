@@ -1,5 +1,5 @@
 {
-  "data_root": "C:\\Users\\HP\\Desktop\\DBC_project\\Binance\\hft-backtest\\data\\lesson2_real_24h_v2",
+  "data_root": "data/lesson2_real_24h_v2",
   "event_counts": {
     "spot.BTCUSDT.depth": 857475,
     "spot.BTCUSDT.gap": 5,

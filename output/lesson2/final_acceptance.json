@@ -1,6 +1,6 @@
 {
   "status": "passed",
-  "generated_at_utc": "2026-11-02T02:13:18.043205+00:00",
+  "generated_at_utc": "2026-11-02T02:21:28.525933+00:00",
   "data_root": "data/lesson2_real_24h_v2",
   "capture_states": {
     "capture_24h_status.json": "succeeded"
@@ -192,6 +192,6 @@
     "main_capture_task_timed_out_in_legacy_validation": true,
     "note": "旧批次现货仅约 5.8 小时，主任务在旧版收尾回放阶段超时；新批次独立采集，不与旧数据拼接。"
   },
-  "report": "output\\lesson2\\real_24h_validation.json",
+  "report": "output/lesson2/real_24h_validation.json",
   "backfill_manifest": null
 }
