@@ -93,7 +93,7 @@ def main() -> None:
     (out / "demo_validation.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
-    assert stats.consistency >= 0.95
+    assert stats.consistency is not None and stats.consistency >= 0.95
     assert report["two_strategies_identical"]
     assert stats.gaps == 2
 

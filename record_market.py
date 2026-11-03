@@ -24,7 +24,7 @@ except ImportError:
 
 def snapshot(market: str, symbol: str, rest_url: str, proxy: str | None) -> dict:
     proxies = {"http": proxy, "https": proxy} if proxy else None
-    response = requests.get(rest_url, params={"symbol": symbol, "limit": 1000},
+    response = requests.get(rest_url, params={"symbol": symbol, "limit": 5000 if market == "spot" else 1000},
                             timeout=20, proxies=proxies)
     response.raise_for_status()
     data = response.json()
@@ -36,64 +36,32 @@ def snapshot(market: str, symbol: str, rest_url: str, proxy: str | None) -> dict
 
 async def record_one(market: str, symbol: str, hours: float, store: ParquetEventStore,
                      proxy: str | None = None) -> None:
-    ws_url, rest_url = endpoints(market, symbol)
-    end = time.monotonic() + hours * 3600
-    backoff = 1
-    while time.monotonic() < end:
-        rows = []
-        try:
-            kwargs = {"ping_interval": 20, "ping_timeout": 60, "open_timeout": 15}
-            if proxy:
-                kwargs["proxy"] = proxy
-            async with connect(ws_url, **kwargs) as ws:
-                print(f"{market} 已连接，重新获取快照", flush=True)
-                store.write_batch([
-                    await asyncio.to_thread(snapshot, market, symbol, rest_url, proxy)
-                ])
+    # 与实时演示共用连接/快照/重连实现，避免两套采集协议漂移。
+    from sim_exchange.live_source import BinanceWebSocketSource
+    source = BinanceWebSocketSource(market, symbol, proxy=proxy,
+                                    duration_seconds=hours * 3600)
+    rows = []
+    last_flush = time.monotonic()
+    try:
+        async for event in source._stream():
+            if event["event_type"] in {"snapshot", "gap"}:
+                if rows:
+                    store.write_batch(rows)
+                    rows = []
+                store.write_batch([event])
+                print(f"{market} {event['event_type']}", flush=True)
+            else:
+                rows.append(event)
+            if time.monotonic() - last_flush >= 60:
+                if rows:
+                    store.write_batch(rows)
+                    rows = []
                 last_flush = time.monotonic()
-                backoff = 1
-                while time.monotonic() < end:
-                    try:
-                        raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
-                    except asyncio.TimeoutError:
-                        raw = None
-                    recv = now_ms()
-                    if raw:
-                        msg = json.loads(raw)
-                        stream, data = msg.get("stream", ""), msg.get("data", {})
-                        if stream.endswith("@depth@100ms"):
-                            rows.append({"market": market, "symbol": symbol,
-                                "event_type": "depth", "recv_ts_ms": recv,
-                                "event_ts_ms": data.get("E"), "U": data["U"],
-                                "u": data["u"], "pu": data.get("pu"),
-                                "bids": data["b"], "asks": data["a"]})
-                        elif stream.endswith(("@aggTrade", "@trade")):
-                            rows.append({"market": market, "symbol": symbol,
-                                "event_type": "trade", "recv_ts_ms": recv,
-                                "event_ts_ms": data.get("E"), "trade_ts_ms": data.get("T"),
-                                "p": data["p"], "q": data["q"], "m": data["m"]})
-                    if time.monotonic() - last_flush >= 60:
-                        store.write_batch(rows)
-                        store.write_batch([
-                            await asyncio.to_thread(snapshot, market, symbol, rest_url, proxy)
-                        ])
-                        print(f"{market} 已写 {len(rows)} 条并保存分钟快照", flush=True)
-                        rows, last_flush = [], time.monotonic()
-        except Exception as exc:
+    finally:
+        if rows:
             store.write_batch(rows)
-            rows = []  # 防止 finally 再写一次，造成断线前事件重复。
-            store.write_batch([{"market": market, "symbol": symbol,
-                "event_type": "gap", "recv_ts_ms": now_ms(), "reason": repr(exc)}])
-            print(f"{market} 断线：{exc!r}；{backoff}s 后重连", flush=True)
-            await asyncio.sleep(backoff)
-            backoff = min(backoff * 2, 30)
-        finally:
-            if rows:
-                store.write_batch(rows)
-    # 分钟快照通常早于终点几十秒；终点再拍一张，才能严格证明快照频道覆盖全程。
-    store.write_batch([
-        await asyncio.to_thread(snapshot, market, symbol, rest_url, proxy)
-    ])
+    _, rest_url = endpoints(market, symbol)
+    store.write_batch([await asyncio.to_thread(snapshot, market, symbol, rest_url, proxy)])
     print(f"{market} 已到采集终点并保存终点快照", flush=True)
 
 

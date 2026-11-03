@@ -8,8 +8,9 @@ import asyncio
 import json
 import time
 from collections.abc import AsyncIterator, Iterator
+from contextlib import AsyncExitStack
 
-from .endpoints import endpoints
+from .endpoints import endpoints, websocket_urls
 
 
 def now_ms() -> int:
@@ -23,7 +24,7 @@ def fetch_snapshot(market: str, symbol: str, rest_url: str | None = None,
 
     url = rest_url or endpoints(market, symbol)[1]
     proxies = {"http": proxy, "https": proxy} if proxy else None
-    response = requests.get(url, params={"symbol": symbol, "limit": 1000},
+    response = requests.get(url, params={"symbol": symbol, "limit": 5000 if market == "spot" else 1000},
                             timeout=20, proxies=proxies)
     response.raise_for_status()
     data = response.json()
@@ -87,7 +88,8 @@ class BinanceWebSocketSource:
         except ImportError:  # websockets 12/13 兼容入口
             from websockets import connect
 
-        ws_url, rest_url = endpoints(self.market, self.symbol)
+        _, rest_url = endpoints(self.market, self.symbol)
+        ws_urls = websocket_urls(self.market, self.symbol)
         started = time.monotonic()
         backoff = 1
 
@@ -96,27 +98,48 @@ class BinanceWebSocketSource:
                     and time.monotonic() - started >= self.duration_seconds)
 
         while not expired():
+            readers = []
             try:
                 kwargs = {"ping_interval": 20, "ping_timeout": 60, "open_timeout": 15}
                 if self.proxy:
                     kwargs["proxy"] = self.proxy
-                async with connect(ws_url, **kwargs) as ws:
-                    yield await asyncio.to_thread(
+                async with AsyncExitStack() as stack:
+                    connections = [await stack.enter_async_context(connect(url, **kwargs))
+                                   for url in ws_urls]
+                    queue = asyncio.Queue()
+
+                    async def receive(ws):
+                        try:
+                            while True:
+                                raw = await ws.recv()
+                                event = message_to_event(self.market, self.symbol, raw, now_ms())
+                                if event is not None:
+                                    await queue.put(event)
+                        except Exception as exc:
+                            await queue.put(exc)
+
+                    readers = [asyncio.create_task(receive(ws)) for ws in connections]
+                    # 接收任务持续缓冲；快照返回后入同一队列，保持实际接收顺序。
+                    snapshot = await asyncio.to_thread(
                         fetch_snapshot, self.market, self.symbol, rest_url, self.proxy)
+                    snapshot["recv_ts_ms"] = now_ms()  # 主接收循环实际取得快照的时刻。
+                    queue.put_nowait(snapshot)
                     backoff = 1
                     last_snapshot = time.monotonic()
                     while not expired():
                         try:
-                            raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
+                            event = await asyncio.wait_for(queue.get(), timeout=1.0)
                         except asyncio.TimeoutError:
-                            raw = None
-                        if raw:
-                            event = message_to_event(self.market, self.symbol, raw, now_ms())
-                            if event is not None:
-                                yield event
+                            event = None
+                        if isinstance(event, Exception):
+                            raise event
+                        if event is not None:
+                            yield event
                         if time.monotonic() - last_snapshot >= self.snapshot_interval_seconds:
-                            yield await asyncio.to_thread(
+                            snapshot = await asyncio.to_thread(
                                 fetch_snapshot, self.market, self.symbol, rest_url, self.proxy)
+                            snapshot["recv_ts_ms"] = now_ms()
+                            queue.put_nowait(snapshot)
                             last_snapshot = time.monotonic()
             except Exception as exc:
                 # 先通知 gap；SimExchange 会暂停推送，下一张快照到达后再恢复。
@@ -126,3 +149,8 @@ class BinanceWebSocketSource:
                     break
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 30)
+            finally:
+                for task in readers:
+                    task.cancel()
+                if readers:
+                    await asyncio.gather(*readers, return_exceptions=True)

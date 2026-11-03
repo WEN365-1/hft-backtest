@@ -4,7 +4,7 @@
 
 ## 1. 本课做了什么
 
-- `record_market.py`：现货 WebSocket 采集 `depth@100ms`、`aggTrade`，U 本位采集 `depth@100ms`、逐笔 `trade`；保存 `E`、`T`、`recv_ts_ms`；分钟快照；断线写 `gap`，指数退避重连并重新快照。U 本位 `aggTrade` 实测持续无消息，`trade` 提供相同核心字段且粒度更细。
+- `record_market.py`：当前现货采集合并流；U 本位用 `/public` 深度与 `/market` 聚合成交双连接，复用实时源实现。保存 `E/T/recv_ts_ms`，分钟快照、缺口与退避重连。历史 v2 批次 U 本位为逐笔 `trade`；当前路由修正不改变历史数据及偏离披露。
 - `backfill_usdm_trades.py`：只用币安真实 REST `aggTrades` 补实时成交开始前的历史缺口；`recv_ts_ms` 保留实际下载时间，`replay_ts_ms=T` 专供研究回放，`source` 明示来源，绝不冒充实时接收。
 - `sim_exchange/storage.py`：统一事件 Schema，Parquet + ZSTD；按 `market/symbol/date=YYYY-MM-DD/hour=HH` 分区；UUID 批文件追加，不覆盖。实时事件按接收小时分区，历史补录按成交小时分区。
 - `sim_exchange/sources.py`：PyArrow 分批读取 + k 路归并，实时事件按本地接收时间输出，明确标记的历史补录按 `replay_ts_ms` 输出；内存不随总数据时长线性增长。
@@ -66,7 +66,7 @@ on_order_request(req, local_ts):
 
 on_exchange_time(now):
     activate orders whose arrival_ts <= now       # 未到交易所的订单不得成交
-    for order in activated_orders:
+    for order in newly_activated_orders:
         if marketable(order):
             fills = walk_visible_book(order)       # 分档、限量、可部分成交
         else:
@@ -80,6 +80,8 @@ on_trade(trade):                                   # 只处理已激活的挂单
         trade.remaining_qty -= consumed
         if order.queue_ahead == 0:
             fill = min(order.remaining_qty, trade.remaining_qty)
+            order.remaining_qty -= fill
+            trade.remaining_qty -= fill
             emit_partial_fill(fill)
 
 on_depth(delta):
@@ -112,13 +114,13 @@ on_fill(fill):
 
 ### 新批次最终 24 小时验收
 
-修复后现货 WebSocket 改用 443 端口，REST 快照改为异步避免阻塞另一市场，并在采集终点强制再拍快照。新批次使用 `data/lesson2_real_24h_v2`，不与旧数据拼接，从 2026-10-28 01:10:51 开始，至 2026-10-29 01:15:54 完成最终验收，`status=passed`。六个必需频道均实际覆盖至少 23.99 小时，总体跨度 24.00173 小时，`live_capture_24h=true`，本批次没有使用历史补录。
+修复后现货 WebSocket 改用 443 端口，REST 快照改为异步避免阻塞另一市场，并在采集终点强制再拍快照。新批次使用 `data/lesson2_real_24h_v2`，不与旧数据拼接，原始接收时间从 2026-10-28 01:10:51.944 至 2026-10-29 01:10:58.172，采集后再执行验收，`status=passed`。六个必需频道均实际覆盖至少 23.99 小时，总体跨度 24.00173 小时，`live_capture_24h=true`，本批次没有使用历史补录。
 
 最终数据量：现货 depth 857,475 条、trade 800,124 条、snapshot 1,429 张；U 本位 depth 846,380 条、trade 2,287,977 条、snapshot 1,428 张。同一 `lastUpdateId` 下有效比较 1,457 次，完全一致 1,455 次，前 20 档一致率约 99.86%；1,393 张被聚合事件跨过编号的快照单列，未计入分母。双市场最终均 synced=true，回调异常为 0。主采集期间现货和 U 本位各记录 5 次真实连接 gap，随后均自动恢复并继续落盘。最终证据为 `output/lesson2/real_24h_validation.json` 与 `output/lesson2/final_acceptance.json`。
 
 ### 真实短时冒烟补充
 
-约 68 秒真实公开行情样本中，现货 depth 665 条、U 本位 depth 669 条、现货 trade 296 条，两个市场各有 2 张快照；修正首事件缓存与编号边界后，双市场最终均连续同步、gap 为 0。两次周期快照精确比较均未一致，说明真实快照与本地事件流存在时间错位，不能用短样本宣称达到 95% 一致率。该样本未收到 U 本位 trade，但 REST 可查到同期成交，需延长频道观测；这些结果只证明采集与回放链路已真实贯通，不替代 24 小时验证。
+约 68 秒真实公开行情样本中，现货 depth 665 条、U 本位 depth 669 条、现货 trade 296 条，两个市场各有 2 张快照；修正首事件缓存与编号边界后，双市场最终均连续同步、gap 为 0。当时两次快照比较均未一致；该旧冒烟没有逐价位成因证据，不能直接断言是时间错位，也不能用于宣称达到 95% 一致率。该样本未收到 U 本位 trade，但 REST 可查到同期成交，需延长频道观测；这些结果只证明采集与回放链路已真实贯通，不替代 24 小时验证。
 
 ### 真实主动断连补充
 
@@ -131,3 +133,11 @@ on_fill(fill):
 - hftbacktest Impact of Order Latency: https://hftbacktest.readthedocs.io/en/latest/tutorials/Impact%20of%20Order%20Latency.html
 - Binance Spot WebSocket / REST API: https://developers.binance.com/docs/binance-spot-api-docs/
 - Binance USD-M Futures API: https://developers.binance.com/docs/derivatives/usds-margined-futures/
+
+## 8. 2026-11-03 提交前复核
+
+同一真实 v2 批次重新回放，当前 1457/1457，前20档有效比较一致率100%；现货1426/1426，U本位31/31。原1455/1457报告已归档，不能把新结果冒充新的24小时录制。两次旧差异均因有限快照外未知卖价进入前20档。核验先记账，再用已收到且同编号的快照扩展未知深度，已知区间内的错误不被快照覆盖。
+
+首条现货采取覆盖快照编号的保守政策；`last+1` 是正常后续规则，不能混讲。录制 gap 共10条，含连接/快照请求异常；回放另检出1次序列衔接缺口，总11。当前28项测试通过。实时双连接路由已改，现网短测遭HTTP451，详见 `SUBMISSION_REVIEW.md`。
+
+伪代码仅描述下一课设计：只对新激活订单初始化一次队列，成交必须扣减订单余量与事件可用成交量；多个本方订单共享外部成交量和队列状态的实现、撤单去重与边界测试均未在本课实现。

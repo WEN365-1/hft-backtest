@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime, timezone
 from collections import Counter
 from pathlib import Path
 
@@ -86,6 +87,7 @@ def validate(root: str, output: str) -> dict:
         for market in ("spot", "usdm") for kind in ("depth", "snapshot", "trade")
     )
     report = {
+        "validated_at_utc": datetime.now(timezone.utc).isoformat(),
         "data_root": root,
         "event_counts": {f"{m}.{s}.{k}": v for (m, s, k), v in sorted(counts.items())},
         "trade_source_counts": dict(sorted(trade_sources.items())),
@@ -118,6 +120,16 @@ def validate(root: str, output: str) -> dict:
         "gap_details": gap_details,
         "final_synced": {m: b["synced"] for m, b in books.items()},
         "callback_errors": stats.callback_errors,
+        "coverage_levels_added": stats.coverage_levels_added,
+        "mismatch_details": stats.mismatch_details,
+        "comparison_policy": "先按同编号比较并记结果，再扩充快照已知边界外的价位；不覆盖已知范围内错量。",
+        "gap_counts": {"recorded_gap_events": len(gap_details),
+                       "sequence_detected": stats.gaps - len(gap_details),
+                       "total": stats.gaps},
+        "consistency_by_market": {
+            market: {"comparisons": n, "exact_matches": stats.matches_by_market[market],
+                     "consistency": stats.matches_by_market[market] / n if n else None}
+            for market, n in stats.comparisons_by_market.items()},
         "note": "receive 覆盖只表示本地实时接收；replay 覆盖可含明确标记的 REST 历史补录。一致率只比较同一 lastUpdateId；首尾覆盖不等于中间无缺失。",
     }
     out = Path(output)
@@ -145,6 +157,9 @@ def main() -> None:
                        for key, synced in report["final_synced"].items()), f"{market} 最终订单簿未同步"
         assert report["top20_consistency"] is not None, "没有有效快照比较"
         assert report["top20_consistency"] >= 0.95, "前 20 档一致率低于 95%"
+        for market in required:
+            ratio = report["consistency_by_market"].get(market, {}).get("consistency")
+            assert ratio is not None and ratio >= 0.95, f"{market} 缺有效比较或前20档一致率不足95%"
         assert report["backfill_integrity"]["invalid_rows"] == 0, "历史补录时间语义或来源字段异常"
     if args.require_24h:
         assert report["covered_hours"] >= MIN_24H_COVERAGE, "总体实时接收覆盖不足 24 小时"

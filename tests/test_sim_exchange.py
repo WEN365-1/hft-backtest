@@ -4,7 +4,7 @@ import pyarrow.parquet as pq
 
 from sim_exchange import (BinanceWebSocketSource, ParquetEventStore,
                           ParquetReplaySource, SimExchange)
-from sim_exchange.endpoints import endpoints
+from sim_exchange.endpoints import endpoints, websocket_urls
 from sim_exchange.live_source import message_to_event
 from sim_exchange.orderbook import SyncedOrderBook
 from sim_exchange.strategies import OneSecondMetricsStrategy
@@ -16,8 +16,12 @@ def test_market_specific_trade_streams():
     assert "btcusdt@aggTrade" in spot_url
     assert "stream.binance.com:443" in spot_url
     assert ":9443" not in spot_url
-    assert "btcusdt@trade" in usdm_url
-    assert "btcusdt@aggTrade" not in usdm_url
+    assert "/public/" in usdm_url
+    assert "btcusdt@depth@100ms" in usdm_url
+    depth_url, trade_url = websocket_urls("usdm", "BTCUSDT")
+    assert depth_url == usdm_url
+    assert "/market/" in trade_url and "btcusdt@aggTrade" in trade_url
+    assert websocket_urls("spot", "BTCUSDT") == (spot_url,)
 
 
 def snap(market="spot", ts=0, uid=100):
@@ -270,3 +274,134 @@ def test_live_source_contract_runs_without_changing_exchange_or_strategy():
     stats = ex.run()
     assert stats.callback_errors == 0
     assert ex.book("spot", "BTCUSDT")["last_update_id"] == 101
+
+
+def test_unknown_depth_is_extended_only_after_comparison():
+    class Source:
+        def events(self):
+            yield snap()
+            extended = snap(ts=1)
+            extended["asks"].append([103, 2])
+            yield extended
+            yield depth(ts=2)
+            extended = snap(ts=3, uid=101)
+            extended["bids"][0][1] = 2.5
+            extended["asks"].append([103, 2])
+            yield extended
+    ex = SimExchange(Source())
+    stats = ex.run()
+    assert stats.snapshot_comparisons == 2
+    assert stats.exact_matches == 1  # 第一次必须先记录不一致，不能抄快照后再比较。
+    assert stats.coverage_levels_added == 1
+    assert ex.book("spot", "BTCUSDT")["asks"][-1] == (103.0, 2.0)
+
+
+def test_coverage_extension_does_not_repair_known_range_errors():
+    book = SyncedOrderBook("spot", "BTCUSDT")
+    book.apply_snapshot(snap())
+    bad = snap()
+    bad["asks"] = [[101, 9], [102, 4], [103, 2]]
+    assert book.extend_snapshot_coverage(bad) == 1
+    assert book.asks[101] == 1  # 已知范围内错量必须继续暴露。
+    assert book.asks[103] == 2
+    book.asks.pop(102)
+    assert book.extend_snapshot_coverage(bad) == 0
+    assert 102 not in book.asks  # 已知范围内缺失也不能用快照悄悄修掉。
+
+
+def test_future_snapshot_cannot_extend_current_book():
+    book = SyncedOrderBook("spot", "BTCUSDT")
+    book.apply_snapshot(snap())
+    future = snap(uid=101)
+    future["asks"].append([103, 2])
+    import pytest
+    with pytest.raises(ValueError):
+        book.extend_snapshot_coverage(future)
+    assert 103 not in book.asks
+
+
+def test_unknown_bid_extension_keeps_known_quantities():
+    book = SyncedOrderBook("spot", "BTCUSDT")
+    book.apply_snapshot(snap())
+    extended = snap()
+    extended["bids"] = [[99, 7], [98, 3], [97, 4]]
+    assert book.extend_snapshot_coverage(extended) == 1
+    assert book.bids[99] == 2 and book.bids[97] == 4
+    assert book.known_bid_floor == 97
+
+
+def test_no_comparisons_is_not_a_perfect_consistency():
+    class Source:
+        def events(self):
+            yield snap()
+    assert SimExchange(Source()).run().consistency is None
+
+
+def test_usdm_numeric_jump_is_not_a_gap_but_pu_mismatch_is():
+    book = SyncedOrderBook("usdm", "BTCUSDT")
+    book.apply_snapshot(snap("usdm"))
+    assert book.apply_depth(depth("usdm", uid=101, pu=95)) == "ok"
+    event = depth("usdm", uid=110, pu=101)
+    event["U"] = 105
+    assert book.apply_depth(event) == "ok"
+    event = depth("usdm", uid=112, pu=109)
+    event["U"] = 110  # 即使编号区间覆盖下一号，pu不等也不能兜底。
+    assert book.apply_depth(event) == "gap"
+
+
+def test_initial_spot_boundary_uses_conservative_resnapshot_policy():
+    book = SyncedOrderBook("spot", "BTCUSDT")
+    book.apply_snapshot(snap())
+    event = depth(uid=102)
+    event["U"] = 101
+    assert book.apply_depth(event) == "gap"
+    assert not book.synced
+
+
+def test_live_usdm_merges_separate_public_and_market_connections(monkeypatch):
+    import asyncio
+    import json
+    import websockets.asyncio.client
+    opened = []
+
+    class Connection:
+        def __init__(self, url):
+            self.url, self.sent = url, False
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *args):
+            return False
+        async def recv(self):
+            if self.sent:
+                await asyncio.Event().wait()
+            self.sent = True
+            if "/public/" in self.url:
+                return json.dumps({"stream": "btcusdt@depth@100ms", "data":
+                    {"E": 1, "U": 100, "u": 101, "pu": 99, "b": [[99, 2]], "a": []}})
+            return json.dumps({"stream": "btcusdt@aggTrade", "data":
+                {"E": 2, "T": 2, "p": "101", "q": "0.2", "m": False}})
+
+    def connect(url, **kwargs):
+        opened.append(url)
+        return Connection(url)
+    monkeypatch.setattr(websockets.asyncio.client, "connect", connect)
+    monkeypatch.setattr("sim_exchange.live_source.fetch_snapshot", lambda *args: snap("usdm", ts=3))
+
+    async def collect():
+        stream = BinanceWebSocketSource("usdm", duration_seconds=5)._stream()
+        events = []
+        try:
+            async for event in stream:
+                events.append(event)
+                if len(events) == 3:
+                    break
+        finally:
+            await stream.aclose()
+        return events
+
+    events = asyncio.run(collect())
+    assert len(opened) == 2
+    assert {event["event_type"] for event in events} == {"snapshot", "depth", "trade"}
+    assert "/public/" in opened[0] and "/market/" in opened[1]
+    received_times = [event["recv_ts_ms"] for event in events]
+    assert received_times == sorted(received_times)

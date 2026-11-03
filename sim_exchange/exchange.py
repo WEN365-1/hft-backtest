@@ -6,7 +6,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from .orderbook import SyncedOrderBook, compare_top
+from .orderbook import SyncedOrderBook, compare_top, levels
 
 log = logging.getLogger(__name__)
 
@@ -20,11 +20,15 @@ class ValidationStats:
     snapshot_pending: int = 0
     gaps: int = 0
     callback_errors: int = 0
+    coverage_levels_added: int = 0
+    mismatch_details: list[dict] = field(default_factory=list)
+    comparisons_by_market: dict[str, int] = field(default_factory=lambda: defaultdict(int))
+    matches_by_market: dict[str, int] = field(default_factory=lambda: defaultdict(int))
     pushed: dict[str, int] = field(default_factory=lambda: defaultdict(int))
 
     @property
-    def consistency(self) -> float:
-        return self.exact_matches / self.snapshot_comparisons if self.snapshot_comparisons else 1.0
+    def consistency(self) -> float | None:
+        return self.exact_matches / self.snapshot_comparisons if self.snapshot_comparisons else None
 
 
 class SimExchange:
@@ -77,7 +81,22 @@ class SimExchange:
         # 只有同一更新编号才代表同一市场状态，不能直接比较任意到达时刻的簿。
         assert book.last_update_id == int(snapshot["last_update_id"])
         self.stats.snapshot_comparisons += 1
-        self.stats.exact_matches += int(compare_top(book, snapshot, 20))
+        self.stats.comparisons_by_market[book.market] += 1
+        matched = compare_top(book, snapshot, 20)
+        self.stats.exact_matches += int(matched)
+        self.stats.matches_by_market[book.market] += int(matched)
+        if not matched:
+            self.stats.mismatch_details.append({
+                "market": book.market, "symbol": book.symbol,
+                "last_update_id": book.last_update_id,
+                "snapshot_recv_ts_ms": snapshot["recv_ts_ms"],
+                "local_top20": book.top(20),
+                "snapshot_top20": {"bids": levels(snapshot["bids"])[:20],
+                                   "asks": levels(snapshot["asks"])[:20]},
+            })
+        # 必须先比较、记结果，再利用已到达的同编号快照扩充未知深度。
+        # 不覆盖已知范围内的缺失/错量，避免掩盖增量维护错误。
+        self.stats.coverage_levels_added += book.extend_snapshot_coverage(snapshot)
 
     def _check_pending_snapshots(self, key, book: SyncedOrderBook) -> None:
         waiting = []

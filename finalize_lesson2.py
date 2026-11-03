@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import re
+import hashlib
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -58,17 +60,19 @@ def require_capture_finished(root: Path) -> tuple[dict, Path]:
     return states, data_root
 
 
-def run_checked(command: list[str], root: Path, timeout: int) -> None:
+def run_checked(command: list[str], root: Path, timeout: int) -> str:
     completed = subprocess.run(command, cwd=root, text=True, encoding="utf-8",
                                errors="replace", capture_output=True, timeout=timeout)
     if completed.returncode:
         tail = (completed.stdout + "\n" + completed.stderr)[-6000:]
         raise RuntimeError(f"命令失败（{completed.returncode}）：{' '.join(command)}\n{tail}")
+    return completed.stdout
 
 
 def validate(root: Path) -> dict:
     capture_states, data_root = require_capture_finished(root)
-    run_checked([sys.executable, "-m", "pytest", "-q"], root, 300)
+    test_output = run_checked([sys.executable, "-m", "pytest", "-q"], root, 300)
+    (root / OUTPUT / "submission_test_results.txt").write_text(test_output, encoding="utf-8")
     # 新批次必须满足严格实时口径；历史补录不能替代任何必需频道的实时 24 小时覆盖。
     run_checked([sys.executable, "validate_replay.py", "--data-root",
                  portable_path(data_root, root), "--output", REPORT.as_posix(),
@@ -100,6 +104,12 @@ def validate(root: Path) -> dict:
         "data_root": portable_path(data_root, root),
         "capture_states": capture_states,
         "tests": "pytest -q passed",
+        "tests_passed": int(re.search(r"(\d+) passed", test_output).group(1)),
+        "source_hash_policy": "UTF-8 text with normalized LF",
+        "source_sha256": {name: hashlib.sha256((root / name).read_text(encoding="utf-8").encode("utf-8")).hexdigest()
+                          for name in ("sim_exchange/orderbook.py", "sim_exchange/exchange.py",
+                                       "sim_exchange/live_source.py", "record_market.py",
+                                       "validate_replay.py", "tests/test_sim_exchange.py")},
         "research_replay_24h": report["all_required_replay_channels_24h"],
         "live_capture_24h": report["all_required_channels_24h"],
         "live_capture_note": "本批次六个必需频道均按 recv_ts_ms 实际覆盖至少 23.99 小时，不依赖历史补录。",
@@ -112,6 +122,12 @@ def validate(root: Path) -> dict:
         "gap_details": report["gap_details"],
         "final_synced": report["final_synced"],
         "callback_errors": report["callback_errors"],
+        "coverage_levels_added": report["coverage_levels_added"],
+        "comparison_policy": report["comparison_policy"],
+        "consistency_by_market": report["consistency_by_market"],
+        "gap_counts": report["gap_counts"],
+        "mismatch_details": report["mismatch_details"],
+        "baseline_report": "output/lesson2/baseline_20261103/real_24h_validation.json",
         "event_counts": report["event_counts"],
         "trade_source_counts": report["trade_source_counts"],
         "channel_coverage": report["channel_coverage"],

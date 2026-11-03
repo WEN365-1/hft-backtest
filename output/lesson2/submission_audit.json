@@ -1,0 +1,36 @@
+{
+  "status": "ready_with_disclosures",
+  "reviewed_at_utc": "2026-11-03T05:02:58.730773+00:00",
+  "tests_passed": 28,
+  "full_replay": {
+    "comparisons": 1457,
+    "matches": 1457,
+    "previous_matches": 1455,
+    "same_raw_batch": true
+  },
+  "raw_data_fingerprint": {
+    "files": 5772,
+    "bytes": 542709834,
+    "manifest_sha256": "166fea19a753b2f41243a4b4cb78ab8ea477d97d7085456868203987d336c4f2"
+  },
+  "new_live_network_smoke": {
+    "checked_at_utc": "2026-11-03T04:47:42.688201+00:00",
+    "kind": "real_network_smoke_not_24h",
+    "market": "usdm",
+    "channels": "public depth + market aggTrade",
+    "event_counts": {
+      "gap": 1
+    },
+    "passed": false,
+    "errors": [
+      "HTTPError('451 Client Error:  for url: https://fapi.binance.com/fapi/v1/depth?symbol=BTCUSDT&limit=1000')"
+    ]
+  },
+  "disclosures": [
+    "historical_usdm_trade_not_aggTrade",
+    "connection_disconnect_not_whole_machine_network",
+    "new_live_smoke_HTTP451_not_passed"
+  ],
+  "entry": "SUBMISSION_README.md",
+  "review": "SUBMISSION_REVIEW.md"
+}

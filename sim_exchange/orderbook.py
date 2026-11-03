@@ -21,6 +21,8 @@ class SyncedOrderBook:
     last_update_id: int = 0
     synced: bool = False
     awaiting_first: bool = False
+    known_bid_floor: float | None = None
+    known_ask_ceiling: float | None = None
 
     def __post_init__(self) -> None:
         if self.market not in {"spot", "usdm"}:
@@ -30,8 +32,32 @@ class SyncedOrderBook:
         self.bids = {p: q for p, q in levels(event.get("bids")) if q > 0}
         self.asks = {p: q for p, q in levels(event.get("asks")) if q > 0}
         self.last_update_id = int(event.get("last_update_id") or event.get("u") or 0)
+        self.known_bid_floor = min(self.bids, default=None)
+        self.known_ask_ceiling = max(self.asks, default=None)
         self.synced = True
         self.awaiting_first = True
+
+    def extend_snapshot_coverage(self, event: dict) -> int:
+        """同编号核验完成后，扩充初始快照范围外的未知价位；不改已知范围。"""
+        if not self.synced or self.last_update_id != int(event["last_update_id"]):
+            raise ValueError("只能用同编号快照扩充覆盖范围")
+        added = 0
+        for side, boundary_name, is_bid in (
+                ("bids", "known_bid_floor", True),
+                ("asks", "known_ask_ceiling", False)):
+            boundary = getattr(self, boundary_name)
+            snapshot_levels = [(p, q) for p, q in levels(event.get(side)) if q > 0]
+            local = getattr(self, side)
+            for price, qty in snapshot_levels:
+                outside = boundary is None or (price < boundary if is_bid else price > boundary)
+                if outside and price not in local:
+                    local[price] = qty
+                    added += 1
+            if snapshot_levels:
+                edge = (min if is_bid else max)(p for p, _ in snapshot_levels)
+                setattr(self, boundary_name, edge if boundary is None else
+                        (min if is_bid else max)(boundary, edge))
+        return added
 
     def invalidate(self) -> None:
         self.synced = False

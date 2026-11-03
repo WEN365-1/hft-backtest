@@ -1,17 +1,26 @@
 {
   "status": "passed",
-  "generated_at_utc": "2026-11-02T02:21:28.525933+00:00",
+  "generated_at_utc": "2026-11-03T04:49:46.994041+00:00",
   "data_root": "data/lesson2_real_24h_v2",
   "capture_states": {
     "capture_24h_status.json": "succeeded"
   },
   "tests": "pytest -q passed",
+  "tests_passed": 28,
+  "source_sha256": {
+    "sim_exchange/orderbook.py": "cab98f188caba9ce8952e4ca4a93e030f19b299872fb7d971dca85fa3f65bbfb",
+    "sim_exchange/exchange.py": "f2aad964cebbcbc6d65f431f42eae7e09c5f7884939993ec4aab3d4ec1bf19a0",
+    "sim_exchange/live_source.py": "4303103d93876bc8e1eed8835fef7c4f034a01aeff3221c89950257cb037b626",
+    "record_market.py": "3a7a7d3aaa26d92506f14832540e19d7d65fbd734527cd4600d35c9eea67c264",
+    "validate_replay.py": "8c253575eac1742d22a5e2fcd9de402fb9ae49819c9c24064965784f1f7eb79c",
+    "tests/test_sim_exchange.py": "0f03807a782313d641e90e750f0fa847180de970b4e8436219f5c92277870d24"
+  },
   "research_replay_24h": true,
   "live_capture_24h": true,
   "live_capture_note": "本批次六个必需频道均按 recv_ts_ms 实际覆盖至少 23.99 小时，不依赖历史补录。",
-  "top20_consistency": 0.9986273164035689,
+  "top20_consistency": 1.0,
   "snapshot_comparisons": 1457,
-  "top20_exact_matches": 1455,
+  "top20_exact_matches": 1457,
   "snapshot_skipped_crossed": 1393,
   "snapshot_pending": 2,
   "gaps_detected": 11,
@@ -82,6 +91,27 @@
     "usdm.BTCUSDT": true
   },
   "callback_errors": 0,
+  "coverage_levels_added": 3396,
+  "comparison_policy": "先按同编号比较并记结果，再扩充快照已知边界外的价位；不覆盖已知范围内错量。",
+  "consistency_by_market": {
+    "spot": {
+      "comparisons": 1426,
+      "exact_matches": 1426,
+      "consistency": 1.0
+    },
+    "usdm": {
+      "comparisons": 31,
+      "exact_matches": 31,
+      "consistency": 1.0
+    }
+  },
+  "gap_counts": {
+    "recorded_gap_events": 10,
+    "sequence_detected": 1,
+    "total": 11
+  },
+  "mismatch_details": [],
+  "baseline_report": "output/lesson2/baseline_20261103/real_24h_validation.json",
   "event_counts": {
     "spot.BTCUSDT.depth": 857475,
     "spot.BTCUSDT.gap": 5,
@@ -193,5 +223,8 @@
     "note": "旧批次现货仅约 5.8 小时，主任务在旧版收尾回放阶段超时；新批次独立采集，不与旧数据拼接。"
   },
   "report": "output/lesson2/real_24h_validation.json",
-  "backfill_manifest": null
+  "backfill_manifest": null,
+  "post_replay_test_note": "全量回放后仅调整实时源快照入队时间戳，并重跑28项测试；订单簿、回放器、验证器未再改变。",
+  "reviewed_at_utc": "2026-11-03T05:02:57.743502+00:00",
+  "source_hash_policy": "UTF-8 text with normalized LF"
 }

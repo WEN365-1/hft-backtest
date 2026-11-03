@@ -1,4 +1,5 @@
 {
+  "validated_at_utc": "2026-11-03T04:49:46.944622+00:00",
   "data_root": "data/lesson2_real_24h_v2",
   "event_counts": {
     "spot.BTCUSDT.depth": 857475,
@@ -124,8 +125,8 @@
   "snapshot_skipped_stale": 0,
   "snapshot_skipped_crossed": 1393,
   "snapshot_pending": 2,
-  "top20_exact_matches": 1455,
-  "top20_consistency": 0.9986273164035689,
+  "top20_exact_matches": 1457,
+  "top20_consistency": 1.0,
   "gaps_detected": 11,
   "gap_details": [
     {
@@ -194,5 +195,25 @@
     "usdm.BTCUSDT": true
   },
   "callback_errors": 0,
+  "coverage_levels_added": 3396,
+  "mismatch_details": [],
+  "comparison_policy": "先按同编号比较并记结果，再扩充快照已知边界外的价位；不覆盖已知范围内错量。",
+  "gap_counts": {
+    "recorded_gap_events": 10,
+    "sequence_detected": 1,
+    "total": 11
+  },
+  "consistency_by_market": {
+    "spot": {
+      "comparisons": 1426,
+      "exact_matches": 1426,
+      "consistency": 1.0
+    },
+    "usdm": {
+      "comparisons": 31,
+      "exact_matches": 31,
+      "consistency": 1.0
+    }
+  },
   "note": "receive 覆盖只表示本地实时接收；replay 覆盖可含明确标记的 REST 历史补录。一致率只比较同一 lastUpdateId；首尾覆盖不等于中间无缺失。"
 }
