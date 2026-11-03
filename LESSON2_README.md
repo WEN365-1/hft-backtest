@@ -116,3 +116,5 @@ python demo_live_source.py --market spot --duration 60 --verbose
 - 现货首条仍采用保守重取快照政策 `U <= last <= u`；首条 `U=last+1` 会重新同步。正常后续采用 `U <= last+1 <= u`。U 本位首条覆盖快照，后续只检查 `pu==last`，无区间兜底。
 - 每个市场/交易对每秒最多一条指标，事件触发、不是秒末汇总；无新事件不输出。普通回调异常隔离不等于超时或进程隔离。
 - 新机器没有原始录制时，可以直接运行测试及合成演示；真实全量复核需要本地 `data/lesson2_real_24h_v2`，按作业要求不随提交包提供。
+
+补充现网证据：`submission_websocket_channels.json` 中两路各收到3条真实消息、核心字段齐全；`submission_live_proxy_smoke.json` 的完整实时源仍因REST快照451失败。通道成功不能替代完整实时源或新24小时验收，详见 `GROK_AUDIT_RECONCILIATION.md`。
