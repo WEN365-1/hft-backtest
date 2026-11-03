@@ -1,38 +1,69 @@
 # 作业二 模拟交易所与成交模拟
 
-本项目交付行情采集、Parquet分区存储、流式回放、本地订单簿和策略订阅推送，并附系统结构图、关键测试、成交模拟笔记和下一课撮合设计。下单、撮合、账户与风控只有接口及设计，本课没有执行实现。
+我按作业要求完成了三项内容：**行情模拟交易所、系统结构图、成交模拟学习笔记与撮合设计**。下面按作业顺序列出我的理解、对应代码和交付结果。
 
-## 项目导航
+**最终验证：33项测试通过；双市场数据跨度24.00173小时；1457次同编号有效比较全部一致。** 统计范围与尚未完成的实验列在末尾备注。
 
-1. `sim_exchange/`：可复用行情模拟交易所；第二课订单簿实现为`sim_exchange/orderbook.py`。
-2. `docs/system_architecture.svg`：模块、数据流及回测/实盘边界。
-3. `LESSON2_NOTES.md`：市价/限价成交、排队假设、延迟与撮合伪代码。
-4. `LESSON2_README.md`：运行方式、数据口径与完整文件导航。
-5. `tests/`：关键逻辑测试；`output/lesson2/`：真实与合成验证证据。
-6. `docs/LIVE_DEMO.md`：现货实时演示；`docs/NETWORK_RECOVERY_TIMELINE.md`：既有批次网络异常恢复时间线。
+## 一 模拟交易所 行情部分
 
-## 已验证结果
+### 概念理解
 
-33项测试通过。既有真实24小时批次的1457次同编号有效比较全部一致（另有1393张跨过编号、2张待比较不计分母；其中U本位31次有效比较）。修复前基线1,455/1,457≈99.86%已单独归档；原始录制不变，当前结果不是新的24小时采集。
+我把这部分理解为一条可以重复使用的数据链路：**采集 → 存储 → 回放 → 维护订单簿 → 推送给策略**。
 
-现货.vision完整实时短测成功，最终同步、gap=0；U本位两个WS通道也收到真实消息。合成演示两策略各302样本且一致，2次缺口恢复。合成数据不用于替代真实录制。
+| 概念 | 我的理解 |
+|---|---|
+| 订单簿 | 按价格汇总当前未成交的买卖数量，买价从高到低、卖价从低到高排列。 |
+| 快照与增量 | 快照提供一个起点；增量只报告变化价位，数量是更新后的总量。 |
+| 回放 | 按本地收到消息的顺序重播，使策略只能使用当前及之前的信息。 |
+| 订阅推送 | 策略登记需要的数据，由模拟交易所调用订单簿、成交和状态回调。 |
 
-## 需要披露的范围
+### 我实现的代码
 
-- 历史v2的U本位24小时成交为逐笔trade；当前采集器改用aggTrade，没有把历史数据改名，也没有新的aggTrade口径24小时录制。
-- 本机U本位REST快照仍451；现货完整演示通过不代表U本位完整建簿通过。
-- 已有两市场采集网络异常自动恢复时间线和独立WS主动断连；二者都不能证明人工整机断网实验已经做过。
+| 作业要求 | 对应代码 | 实现内容 |
+|---|---|---|
+| 采集 | [record_market.py](record_market.py)、[live_source.py](sim_exchange/live_source.py) | 现货与U本位行情、三个时间字段、分钟快照、gap记录和自动重连。 |
+| 存储 | [storage.py](sim_exchange/storage.py) | Parquet按市场、交易对、日期、小时分区，批次追加，不覆盖旧数据。 |
+| 回放 | [sources.py](sim_exchange/sources.py) | 指定时间段、分批读取、多文件归并，支持播放速度控制。 |
+| 订单簿与推送 | [orderbook.py](sim_exchange/orderbook.py)、[exchange.py](sim_exchange/exchange.py) | 区分两市场同步规则；缺页暂停与恢复；多策略订阅、数据和异常隔离。 |
+| 示例策略 | [strategies.py](sim_exchange/strategies.py) | 计算中间价、价差和过去1秒主动买卖量差，按市场和交易对分别维护。 |
+| 接口预留 | [interfaces.py](sim_exchange/interfaces.py) | 按本次范围预留订单、风控、回报和账户数据结构。 |
 
-## 运行
+本次我实现的是行情部分；下单和撮合执行留到下一次作业。关键逻辑测试位于[tests/test_sim_exchange.py](tests/test_sim_exchange.py)。
 
-```powershell
-python -m venv .venv
-.venv\Scripts\python -m pip install -r requirements.txt
-.venv\Scripts\python -m pytest -q
-.venv\Scripts\python verify_submission.py
-.venv\Scripts\python demo_sim_exchange.py --data-root data/lesson2_demo_review
-```
+## 二 系统结构图
 
-`verify_submission.py`核对已有报告和源码指纹的一致性，不是独立计算真实数据。真实全量复算必须有本地原始Parquet，运行`validate_replay.py --data-root data/lesson2_real_24h_v2 --require-pass --require-24h`；原始行情不随包提供。
+[查看系统结构图](docs/system_architecture.svg)
 
-`fingerprint_data.py`公开逐文件及聚合指纹算法。`build_submission.py`按白名单生成本作业的成果包。完整复核记录可在PR中查看：https://github.com/WEN365-1/hft-backtest/pull/1
+我补全了行情采集、存储、模拟交易所、订单簿、策略、风控、订单管理、账户和监控的关系，标明箭头传递的数据，以及回测与实盘共用、替换和后续实现的部分。
+
+## 三 高频回测成交模拟学习笔记
+
+[查看成交模拟笔记与撮合伪代码](LESSON2_NOTES.md)
+
+我按照作业中的三个问题整理了笔记：
+
+1. 市价单和限价单分别如何判断成交。
+2. 只有L2数据时如何估计排队位置，不同撤单假设有什么区别。
+3. 行情延迟、下单进入延迟和响应延迟对结果有什么影响。
+
+最后附上我对下一步撮合模块的设计：订单到达、主动成交、被动排队、部分成交、撤单和成交回报的处理顺序。
+
+## 四 结果与验证
+
+| 验证项 | 最终结果 | 对应证据 |
+|---|---|---|
+| 关键逻辑测试 | **33项通过** | [测试输出](output/lesson2/submission_test_results.txt) |
+| 双市场录制 | 六个必需频道覆盖均至少23.99小时，总跨度24.00173小时 | [完整验证报告](output/lesson2/real_24h_validation.json) |
+| 订单簿核验 | **1457次同编号有效比较全部一致**，比较范围见备注1 | [最终验收摘要](output/lesson2/final_acceptance.json) |
+| 双策略一致性 | 真实60秒片段中，两策略各3624次回调、121条样本，内容全部一致 | [双策略验证](output/lesson2/submission_two_strategies.json) |
+| 现货实时演示 | 最终同步，gap=0，回调异常=0 | [实网结果](output/lesson2/submission_spot_vision_live.json) |
+| 自动恢复 | 主动关闭一条真实WS连接后，记录gap、重连取快照并恢复同步 | [断连恢复结果](output/lesson2/submission_spot_controlled_disconnect.json) |
+
+运行与复算方法见[使用说明](LESSON2_README.md)，现场演示命令见[实时演示说明](docs/LIVE_DEMO.md)。
+
+## 备注
+
+1. 订单簿结果只统计同编号有效比较：现货1426次、U本位31次；另1393张快照被跨过编号、2张待比较，不计分母。它不是全时刻订单簿准确率。
+2. 验证数据批次的U本位成交使用逐笔trade；当前采集器已使用aggTrade，但没有新的aggTrade口径24小时录制。本机U本位REST仍返回451；现货完整演示通过不代表U本位完整建簿通过。
+3. 已验证的是采集连接异常恢复与主动关闭WS后的恢复，没有执行人工整机断网实验。详细时间线见[网络恢复证据](docs/NETWORK_RECOVERY_TIMELINE.md)。
+4. 原始行情按作业要求不提交。修复前基线1,455/1,457≈99.86%保存在baseline_20261103；版本变更和完整复核记录留在PR，不作为正文内容。

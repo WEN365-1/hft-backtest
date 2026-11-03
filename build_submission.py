@@ -41,10 +41,17 @@ def build(root: Path, output: Path, revision: str) -> dict:
     # 老师解压后打开默认README即看到成果导航，避免误入第一课入口。
     payloads["hft-backtest/README.md"] = (root / "SUBMISSION_README.md").read_bytes()
     payloads["请先阅读_作业二提交说明.md"] = (
-        "作业二成果位于hft-backtest目录。\n"
-        f"提交版本：{revision}\n"
-        "PR：https://github.com/WEN365-1/hft-backtest/pull/1\n\n"
-        + (root / "SUBMISSION_README.md").read_text(encoding="utf-8")).encode("utf-8")
+        "# 作业二成果导航\n\n"
+        "我按作业顺序整理了以下内容：\n\n"
+        "1. [概念理解与我实现的代码](hft-backtest/README.md)\n"
+        "2. [系统结构图](hft-backtest/docs/system_architecture.svg)\n"
+        "3. [成交模拟学习笔记与撮合设计](hft-backtest/LESSON2_NOTES.md)\n"
+        "4. [结果与验证](hft-backtest/README.md#四-结果与验证)\n\n"
+        "**最终成果、对应代码和验证结果见上述入口。** "
+        "统计范围和待补实验集中在成果说明末尾备注。\n\n"
+        "[运行与复算方法](hft-backtest/LESSON2_README.md)\n\n"
+        "[GitHub PR](https://github.com/WEN365-1/hft-backtest/pull/1)\n\n"
+        f"提交版本：`{revision}`\n").encode("utf-8")
     for name in payloads:
         parts = Path(name).parts
         if "data" in parts or ".venv" in parts or "__pycache__" in parts or name.endswith((".html", ".parquet")):

@@ -25,7 +25,7 @@
     "validate_replay.py": "fbb522b4c9e9fbc07367d48308d8b11b1d0c0e3d1b8b938b2048758d0c92feda",
     "tests/test_sim_exchange.py": "7cc0f917e950b27d9dfa81a261ae14aef79dd8d301e6a867b9cc7401d4050ffa",
     "diagnose_disconnect.py": "720c59aa92f1d84a4dd9ac29071e0d872bd68df949e081aa34c24d3a82603259",
-    "build_submission.py": "bc1180cd20140626a233595f117e42923f41a54c259ee9c98f80c59b24b44525"
+    "build_submission.py": "b26e6f77eea2fcb18a5c9c7a7d3893f3922407907087be274ef2fd4b90f18590"
   },
   "research_replay_24h": true,
   "live_capture_24h": true,
