@@ -1,120 +1,103 @@
-# 第二课使用说明
+# 作业二使用说明
 
-## 快速验证（无需联网）
+本课实现行情采集、分区存储、流式回放、本地订单簿和策略订阅。下单、撮合、风控、账户只有接口和设计，不是已实现执行模块。老师包只包含第二课成果；仓库根目录的orderbook.py、backtester.py等为第一课资产，第二课请看sim_exchange/。
 
-```bash
-pip install -r requirements.txt
-python -m pytest -q
-python demo_sim_exchange.py
-# 如需观察每秒指标：
-python demo_sim_exchange.py --verbose
+## 安装与离线运行
+
+```powershell
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt
+.venv\Scripts\python -m pytest -q
+.venv\Scripts\python verify_submission.py
+.venv\Scripts\python demo_sim_exchange.py --data-root data/lesson2_demo_review
 ```
 
-演示输出：`output/lesson2/demo_validation.json`。合成数据只验证工程机制，不用于评价策略收益。
+当前33项测试通过。合成演示前20档比较2/2，两次gap恢复，两个策略各302条样本且完整样本/状态一致；合成数据不能当作真实24小时录制。演示目录仅用于合成数据，勿指向原始行情目录。
 
-当前离线验证：28 项测试通过；双市场前 20 档一致率 100%；2 次 gap 均暂停并恢复；双策略完整样本一致。新增测试覆盖小时分区裁剪、回放速度和实时源接口替换。
+verify_submission.py是交付报告、基线和源码指纹的一致性检查，不是独立计算真实行情。完整真实复算必须有原始Parquet。
 
-## 真实 24 小时采集
+## 当前采集接口和实时演示
 
-```bash
-python record_market.py --market both --symbol BTCUSDT --hours 24 --data-root data/lesson2_real
-# 网络受限时按本机情况添加：--proxy http://127.0.0.1:7890
+- 现货公开行情：`wss://data-stream.binance.vision:443/stream?...`与`https://data-api.binance.vision/api/v3/depth`，来自官方Market Data Only接口。
+- U本位：深度走`wss://fstream.binance.com/public`，聚合成交aggTrade走`/market`，双连接统一按实际接收顺序提供消息。
+- 现货新快照5000档，U本位1000档；录制、周期、重连与终点快照统一调用live_source.fetch_snapshot，不再保留两套字段/深度实现。
+- 交易所E、成交T和本地接收时间都保留。每分钟快照，重连后再取，终点补一张；异常写gap并退避重连。
+
+```powershell
+python demo_live_source.py --market spot --duration 15 --verbose --report output/lesson2/my_spot_demo.json
 ```
 
-运行期间可主动断网一次，观察日志中的 gap、退避重连、重连快照。真实 24 小时录制需要持续运行 24 小时；本仓库不把三分钟合成演示声称为真实录制结果。
+当前本机现货完整短测通过：最终同步、买卖盘非空，gap=0，回调异常=0；实际204次成交回调、126次簿回调、14条指标，见submission_spot_vision_live.json。请求15秒接收时长，总耗时另含连接与收尾。
 
-当前采集器：现货使用合并流；U 本位深度走 `/public`，`aggTrade` 走 `/market`，两条连接按实际接收顺序汇入同一事件队列，统一保存 `E/T/p/q/m`。现货新快照取 5000 档，U 本位取 1000 档。历史 v2 批次的 U 本位使用逐笔 `trade`，这是当时相对作业 `aggTrade` 要求的偏离，原始数据没有改写。2026-10-26 的旧批次中，U 本位实时逐笔成交流从 10:53 开始，此前缺口已用 222,914 条币安真实 REST `aggTrades` 补齐；但现货在约 5.8 小时后持续重连失败，旧批次因此**未通过**双市场 24 小时验收。补录清单见 `output/lesson2/usdm_trade_backfill_manifest.json`，旧批次失败摘要保持为 `output/lesson2/legacy_attempt_summary.md`；约 291 KB 的完整旧报告只留本地，不进入 PR。修复后现货改用 443 端口、快照请求改为异步、终点增加快照；新批次写入独立目录 `data/lesson2_real_24h_v2`，不与旧数据拼接。
+U本位WS两路各收到3条真实消息，核心字段齐全；但本机fapi REST快照直连/代理仍451，不能演示完整U本位建簿，也没有新的aggTrade口径24小时录制。细节与命令见docs/LIVE_DEMO.md。
 
-如需复现历史补录（已有完整清单时重复执行会直接退出，避免重复写数）：
+## 新24小时采集
 
-```bash
-python backfill_usdm_trades.py --data-root data/lesson2_real_24h
+```powershell
+python record_market.py --market both --symbol BTCUSDT --hours 24 --data-root data/new_aggtrade_run --proxy http://127.0.0.1:7890
+# 自动化入口，支持--proxy或BINANCE_PROXY；只接受新的空目录
+python capture_24h.py --data-root data/new_aggtrade_24h --proxy http://127.0.0.1:7890
 ```
 
-采集结束后一键生成核验报告：
+不要复用历史v2目录。capture_24h默认按UTC时间生成独立目录；采完由finalize统一执行测试与一次全量回放，不再先验证一遍、又重复验证一遍。当前本机U本位REST451尚未解决，不能把上述命令写成已经完成的新24小时实验。
 
-```bash
-# 新批次严格实时口径：六个必需频道都必须实际接收满 24 小时。
+## 存储与回放
+
+Parquet按市场/交易对/UTC日期/小时分区，批次文件追加而不覆盖。分钟缓冲在进程崩溃时可能丢失尚未写盘的约一分钟数据。回放先裁剪小时分区、分批读取并归并；当前小时文件数仍影响文件句柄和堆规模。
+
+```powershell
 python validate_replay.py --data-root data/lesson2_real_24h_v2 --require-pass --require-24h
-# 旧批次仅用于失败复盘；即使允许 REST 补录，也会因现货不足 24 小时而拒绝。
-python validate_replay.py --data-root data/lesson2_real_24h --require-pass --require-replay-24h
-# 主采集状态成功后，再跑测试、覆盖最终报告并生成验收摘要：
 python finalize_lesson2.py
 ```
 
-历史v2批次已完成真实录制；接收范围为2026-10-28 01:10:51.944至2026-10-29 01:10:58.172（Asia/Shanghai）。2026-11-03使用当前代码复核，结果为 `status=passed`。六个必需频道的实时覆盖均 ≥23.99 小时，总体跨度 24.00173 小时，未使用历史补录。现货写入 depth 857,475 条、trade 800,124 条、snapshot 1,429 张；U 本位写入 depth 846,380 条、trade 2,287,977 条、snapshot 1,428 张。同编号前 20 档比较 1,457 次，1,457 次一致，一致率 100%（2026-11-03 使用同一原始批次复核；原基线 1,455/1,457≈99.86% 已归档）；双市场最终均同步、回调异常为 0。主采集期间两个市场各记录 5 条采集异常 gap（含连接和快照请求异常），模拟器另检出 1 次编号连续性缺口，合计 11，随后均恢复。最终报告为 `output/lesson2/real_24h_validation.json` 和 `output/lesson2/final_acceptance.json`。
+实时录制按recv_ts_ms回放；明确标记的旧REST补录才按replay_ts_ms=T参加研究回放。v2没有历史补录。验证器现在在同一次事件遍历内计数并运行模拟交易所，单遍优化后与c4b171b报告29个数据结果字段全部一致。
 
-报告分别包含实时接收与研究回放的首尾时间、覆盖小时数、成交来源数量、gap 明细、最终同步状态和前 20 档一致率。一致率只在本地簿与快照的 `lastUpdateId` 相同时计算；旧快照、被聚合事件跨过的快照和仍等待对齐的快照分别统计，不混入分母。`--require-pass` 检查双市场成交流、最终同步和 95% 一致率；`--require-24h` 只认可实时接收，`--require-replay-24h` 才允许明确标记的补录。首尾跨度不等于中间无缺失，仍需结合 gap 和补录清单判断。
+## 真实v2批次结果
 
-## 真实主动断连验证
+原始接收范围：2026-10-28 01:10:51.944至2026-10-29 01:10:58.172（北京时间），总跨度24.00173小时，六个必需频道各实际覆盖至少23.99小时。首尾跨度不等于中间无缺口。
 
-```bash
-python diagnose_disconnect.py
+当前1457次同编号有效比较全部一致（另1393张跨过编号、2张待比较不计分母，U本位31次有效比较）。现货1426/1426，U本位31/31；其余5张快照用于初始化/重建，不参与比较。33项测试通过，终点双市场同步、普通策略回调异常0。
+
+修复前基线1,455/1,457≈99.86%在baseline_20261103/归档。两次旧差异分别缺4和8个卖方价位，均在重建1000档快照之外。当前先按同编号比较并记账，再扩充原覆盖边界外的未知价位；不重置健康簿、不覆盖已知范围错误。共补入3396个价位，原始录制不变。
+
+历史v2的U本位成交为逐笔trade，不是aggTrade；当前采集代码改变不改写历史数据，也不等于已经重新录满24小时。旧失败批次、旧补录与v2独立，不拼接冒充通过；旧结果见legacy_attempt_summary.md。
+
+## 异常与恢复证据
+
+录制gap共10条（两市场各5），模拟器另检出1次编号连续性缺口，总11。既有录制中两市场出现SSLError/ConnectionResetError，随后各约72秒取得新快照，从最早异常到两市场均有新快照为79.285秒；逐时刻证据见docs/NETWORK_RECOVERY_TIMELINE.md。它支持采集连接异常自动恢复，不能证明整机网络被关闭。
+
+```powershell
+python diagnose_disconnect.py --output output/lesson2/my_connection_disconnect.json
 ```
 
-该测试在真实现货 WebSocket 收到行情后主动关闭首条连接，不注入伪 gap，也不影响整机网络。2026-10-28 使用修复后的 443 通道复测，产生 1 次真实 gap，随后自动重连并重新快照；最后 gap 之后收到 2 张快照、248 条 depth、154 条 trade，最终同步为 true。证据见 `output/lesson2/controlled_disconnect_validation.json`。这是独立连接级断连测试，不冒充 24 小时主采集发生了断线，也不声称做过整机断网。
+此脚本关闭首条真实WS连接，不关整机网络。当前.vision重测：1次gap，重连后2张快照、201条depth、148条trade，最终同步；证据为submission_spot_controlled_disconnect.json。历史2026-10-28连接级测试的248条depth、154条trade另存controlled_disconnect_validation.json，不混为本次数据。
 
-## 回放真实数据
+## 同步、推送和指标边界
 
-```python
-from sim_exchange import SimExchange, ParquetReplaySource
-from sim_exchange.strategies import OneSecondMetricsStrategy
+- 现货首条采用U<=last<=u的保守重取政策，U=last+1会重新同步；正常后续U<=last+1<=u。U本位首条覆盖快照，后续只看pu==last，不等时不能用区间兜底。
+- 同订阅内容顺序一致；深拷贝隔离数据；普通回调异常被记录并隔离。没有进程/超时隔离，卡住不返回仍会阻塞。
+- 中间价、价差和过去1秒主动量差按市场/交易对分别维护；m=true为主动卖，记负。每秒最多一次、由事件触发，不是秒末汇总，无事件不输出。
+- 缺口期间漏掉的成交不能靠新快照补回；示例状态回调只记录通知。
+- 有限快照深度不是全市场覆盖保证；抽查全匹配也不是每一时刻都100%准确。
 
-# speed=0 尽快回放；speed=1 按接收时差原速，speed=2 表示两倍速。
-source = ParquetReplaySource("data/lesson2_real_24h_v2", speed=0)
-ex = SimExchange(source)
-strategy = OneSecondMetricsStrategy()
-ex.subscribe(strategy, [
-    "usdm.BTCUSDT.book", "usdm.BTCUSDT.trade", "usdm.BTCUSDT.status",
-    "spot.BTCUSDT.book", "spot.BTCUSDT.trade", "spot.BTCUSDT.status",
-])
-stats = ex.run()
-print(stats.consistency, ex.book("usdm", "BTCUSDT", depth=20))
+## 指纹与老师包
+
+```powershell
+python fingerprint_data.py --data-root data/lesson2_real_24h_v2 --output local_data_fingerprint.json
+python build_submission.py --output ../lesson2_teacher.zip
 ```
 
-回放器先按 `start_ms/end_ms` 裁剪小时分区，每次只归并当前小时的文件，再按文件 batch 读取；24 小时总文件数不再决定同时打开的文件数。存储层保证分区小时与 `replay_time_ms` 对应，因此不会为了裁剪牺牲时间顺序。
+聚合指纹精确算法：按相对POSIX路径字典序排列，每个文件编码一行`相对路径 + NUL + 十进制字节数 + NUL + 小写文件sha256 + LF`，以UTF-8编码拼接后取sha256。5772个文件、542709834字节，重新计算仍为166fea19a753b2f41243a4b4cb78ab8ea477d97d7085456868203987d336c4f2。完整逐文件清单只留本地。
 
-## 切换真实实时源
+老师包由白名单构建，仅含第二课代码、测试、结构图、成交笔记、项目说明与必要统计证据；不包含原始行情、环境和第一课资产。完整审计记录保留在PR：https://github.com/WEN365-1/hft-backtest/pull/1
 
-```bash
-# 只读公开行情；默认演示 60 秒，网络受限时按本机情况加 --proxy。
-python demo_live_source.py --market spot --duration 60 --verbose
-```
+## 正式文件导航
 
-`BinanceWebSocketSource` 与 `ParquetReplaySource` 都实现同步 `events()`。实时源负责连接、分钟快照、gap 和退避重连；`SimExchange`、订单簿与 `OneSecondMetricsStrategy` 完全不变。`sim_exchange/endpoints.py` 是零第三方依赖的订阅地址模块，纯逻辑测试不再需要导入 `record_market.py` 或加载 `websockets`。
+- sim_exchange/：双市场行情交易所；record_market.py：采集；capture_24h.py：新24小时入口。
+- validate_replay.py：单遍全量复算；finalize_lesson2.py：测试与最终验收。
+- demo_live_source.py、diagnose_disconnect.py：实网演示与连接级恢复。
+- LESSON2_NOTES.md、docs/system_architecture.svg：笔记与结构图。
+- verify_submission.py：已有证据一致性核对；fingerprint_data.py：原始文件指纹。
+- output/lesson2/：证据与修复前小型统计基线；原始数据不提交。
 
-## 文件导航
-
-| 路径 | 内容 |
-|---|---|
-| `sim_exchange/` | 模拟交易所包 |
-| `sim_exchange/live_source.py` | 可替换的真实 WebSocket 实时源 |
-| `sim_exchange/endpoints.py` | 无第三方依赖的行情地址与成交频道规则 |
-| `record_market.py` | 双市场真实采集 |
-| `backfill_usdm_trades.py` | USD-M 真实历史成交补录与来源清单 |
-| `validate_replay.py` | 实时 / 研究回放双口径核验 |
-| `demo_sim_exchange.py` | 离线可重复演示 |
-| `demo_live_source.py` | 只换 source 的真实实时演示 |
-| `tests/test_sim_exchange.py` | 28 项关键测试 |
-| `LESSON2_NOTES.md` | 成交、排队、延迟与撮合伪代码 |
-| `docs/system_architecture.svg` | 系统结构图 |
-| `第二课_学习与汇报.html` | 术语 + 大白话学习与汇报材料 |
-
-## 已知边界
-
-- 本课不实现下单、撮合、账户和风控，只预留接口。
-- 回放已按小时裁剪并分批归并；单小时内大量小文件仍有打开与堆维护成本，生产环境可继续压缩合并。
-- Parquet 是列式格式，批次越小写入开销越大；当前“分钟写盘”在崩溃时最多损失尚未 flush 的约一分钟数据。
-- 演示为合成数据；真实一致率、断线恢复与 24 小时稳定性须以真实录制日志复核。实时源示例的接口已离线测试，但每次实网表现仍取决于当时网络与币安服务。
-
-## 提交前复核补充 2026-11-03
-
-- 全量原始数据复核仍为 1457 次同编号比较，现为 1457 次一致；现货 1426/1426，U 本位 31/31，分别通过 95% 检查。被跨过的 1393 张、待比较的 2 张不计入分母。
-- 两次原始差异来自 1000 档快照之外未知卖价进入前 20 档，非已证实的毫秒错位。当前在同编号核验结果记账后，仅扩充原覆盖边界外的未知深度，不重置健康簿，也不覆盖已知范围的错误。真实回放补充 3396 个价位。
-- 原报告保存在 `output/lesson2/baseline_20261103/`，新报告位于原有验收入口。原始 Parquet 不变。
-- `submission_live_smoke.json` 记录本次真实实时重测：REST 快照返回 HTTP 451，未通过新现网冒烟。新路由的双连接归并已通过离线测试，不冒充已完成新的现网或24小时验证。
-- 现货首条仍采用保守重取快照政策 `U <= last <= u`；首条 `U=last+1` 会重新同步。正常后续采用 `U <= last+1 <= u`。U 本位首条覆盖快照，后续只检查 `pu==last`，无区间兜底。
-- 每个市场/交易对每秒最多一条指标，事件触发、不是秒末汇总；无新事件不输出。普通回调异常隔离不等于超时或进程隔离。
-- 新机器没有原始录制时，可以直接运行测试及合成演示；真实全量复核需要本地 `data/lesson2_real_24h_v2`，按作业要求不随提交包提供。
-
-补充现网证据：`submission_websocket_channels.json` 中两路各收到3条真实消息、核心字段齐全；`submission_live_proxy_smoke.json` 的完整实时源仍因REST快照451失败。通道成功不能替代完整实时源或新24小时验收，详见 `GROK_AUDIT_RECONCILIATION.md`。
+官方现货公开行情说明：https://developers.binance.com/en/docs/products/spot/faqs/market_data_only

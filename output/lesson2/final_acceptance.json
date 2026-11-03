@@ -1,19 +1,31 @@
 {
   "status": "passed",
-  "generated_at_utc": "2026-11-03T04:49:46.994041+00:00",
+  "generated_at_utc": "2026-11-03T05:28:27.057995+00:00",
   "data_root": "data/lesson2_real_24h_v2",
   "capture_states": {
     "capture_24h_status.json": "succeeded"
   },
   "tests": "pytest -q passed",
-  "tests_passed": 28,
+  "tests_passed": 33,
+  "source_hash_policy": "UTF-8 text with normalized LF",
   "source_sha256": {
     "sim_exchange/orderbook.py": "cab98f188caba9ce8952e4ca4a93e030f19b299872fb7d971dca85fa3f65bbfb",
     "sim_exchange/exchange.py": "f2aad964cebbcbc6d65f431f42eae7e09c5f7884939993ec4aab3d4ec1bf19a0",
     "sim_exchange/live_source.py": "4303103d93876bc8e1eed8835fef7c4f034a01aeff3221c89950257cb037b626",
-    "record_market.py": "3a7a7d3aaa26d92506f14832540e19d7d65fbd734527cd4600d35c9eea67c264",
-    "validate_replay.py": "8c253575eac1742d22a5e2fcd9de402fb9ae49819c9c24064965784f1f7eb79c",
-    "tests/test_sim_exchange.py": "0f03807a782313d641e90e750f0fa847180de970b4e8436219f5c92277870d24"
+    "sim_exchange/endpoints.py": "d16adbca52d953981ae6391c5ac5be3202a524ccc086650fbee48cba8a5a867d",
+    "sim_exchange/sources.py": "62e9fac09db41d9e33688169b08a0a0cdba8aa73b70e94b067816a096ec74068",
+    "sim_exchange/storage.py": "dfdd3106b0084df4bf96e3a1c43d6bd91830e654b832bfabfc0bd5c2a3cb8713",
+    "sim_exchange/strategies.py": "949caf855a92f0adf1d3a20ad362c950176edaea33c81a0f8ec3a14d54cf31bc",
+    "record_market.py": "4128d38b841fc8992699a7dcd486c0176639a389342e16cfa188c6184c47760c",
+    "demo_live_source.py": "dce31ce724a61c42f42d79fc2d17f0377350297609270b5865729f020cb3b073",
+    "capture_24h.py": "8f25377747b37e64098a4eaf991d90120e6612ac28347c67c550d272cc324f99",
+    "fingerprint_data.py": "2518f4725e5adaf6d566fa620d6b5aa0602e53f1f0fce7e11385306e8329fffb",
+    "verify_submission.py": "931200eb178105d4331fc5cc6d314adcdaa90414d9d67062f62232be357f198f",
+    "finalize_lesson2.py": "a747e1fcee7d9e480e8823ebf993e6467dc11124db8dfd5c49dab3b85afc404c",
+    "validate_replay.py": "fbb522b4c9e9fbc07367d48308d8b11b1d0c0e3d1b8b938b2048758d0c92feda",
+    "tests/test_sim_exchange.py": "7cc0f917e950b27d9dfa81a261ae14aef79dd8d301e6a867b9cc7401d4050ffa",
+    "diagnose_disconnect.py": "720c59aa92f1d84a4dd9ac29071e0d872bd68df949e081aa34c24d3a82603259",
+    "build_submission.py": "bc1180cd20140626a233595f117e42923f41a54c259ee9c98f80c59b24b44525"
   },
   "research_replay_24h": true,
   "live_capture_24h": true,
@@ -224,7 +236,5 @@
   },
   "report": "output/lesson2/real_24h_validation.json",
   "backfill_manifest": null,
-  "post_replay_test_note": "全量回放后仅调整实时源快照入队时间戳，并重跑28项测试；订单簿、回放器、验证器未再改变。",
-  "reviewed_at_utc": "2026-11-03T05:02:57.743502+00:00",
-  "source_hash_policy": "UTF-8 text with normalized LF"
+  "reviewed_at_utc": "2026-11-03T05:39:30.938162+00:00"
 }

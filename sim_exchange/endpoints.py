@@ -7,9 +7,9 @@ def endpoints(market: str, symbol: str) -> tuple[str, str]:
     s = symbol.lower()
     streams = f"{s}@depth@100ms/{s}@aggTrade"
     if market == "spot":
-        # 443 与常用 HTTPS 端口一致，网络切换后通常比 9443 更容易恢复。
-        return (f"wss://stream.binance.com:443/stream?streams={streams}",
-                "https://api.binance.com/api/v3/depth")
+        # 官方公开行情专用端点，无需密钥；不用于账户或下单。
+        return (f"wss://data-stream.binance.vision:443/stream?streams={streams}",
+                "https://data-api.binance.vision/api/v3/depth")
     if market == "usdm":
         return (f"wss://fstream.binance.com/public/stream?streams={s}@depth@100ms",
                 "https://fapi.binance.com/fapi/v1/depth")

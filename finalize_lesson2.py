@@ -108,7 +108,12 @@ def validate(root: Path) -> dict:
         "source_hash_policy": "UTF-8 text with normalized LF",
         "source_sha256": {name: hashlib.sha256((root / name).read_text(encoding="utf-8").encode("utf-8")).hexdigest()
                           for name in ("sim_exchange/orderbook.py", "sim_exchange/exchange.py",
-                                       "sim_exchange/live_source.py", "record_market.py",
+                                       "sim_exchange/live_source.py", "sim_exchange/endpoints.py",
+                                       "sim_exchange/sources.py", "sim_exchange/storage.py",
+                                       "sim_exchange/strategies.py", "record_market.py",
+                                       "demo_live_source.py", "capture_24h.py", "fingerprint_data.py",
+                                       "diagnose_disconnect.py", "build_submission.py",
+                                       "verify_submission.py", "finalize_lesson2.py",
                                        "validate_replay.py", "tests/test_sim_exchange.py")},
         "research_replay_24h": report["all_required_replay_channels_24h"],
         "live_capture_24h": report["all_required_channels_24h"],

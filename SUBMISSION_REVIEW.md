@@ -1,57 +1,48 @@
-# 作业二提交前复核
+# 作业二当前提交复核
 
-复核日期：2026-11-03（Asia/Shanghai）。结论：离线工程测试和同批历史数据复核通过，可供导师审阅；下述历史粒度偏离、断连范围和现网限制必须一并披露。
+复核日期：2026-11-03。完整记录保留在PR；老师包以SUBMISSION_README.md介绍成果和边界。独立审核原件保持原样，c4b171b及以前的结论是对应版本的历史快照，不作为当前代码的唯一说明。
 
-## 当前可复查结果
+## 当前验证结果
 
-| 项目 | 本次结果 | 证据 |
+| 项目 | 结果与范围 | 证据 |
 |---|---|---|
-| 测试 | 28 passed | output/lesson2/submission_test_results.txt |
-| 真实接收范围 | 2026-10-28 01:10:51.944 至 10-29 01:10:58.172；24.00173小时 | real_24h_validation.json 首尾毫秒时间 |
-| 六个必需频道 | 各实际接收覆盖至少23.99小时，无补录 | channel_coverage / trade_source_counts |
-| 同编号前20档比较 | 1457/1457，100% | final_acceptance.json |
-| 分市场 | 现货1426/1426；U本位31/31；分别检验至少95% | consistency_by_market |
-| 跨过/待比较 | 1393张跨过、2张待比较，均不计分母 | snapshot_skipped_crossed / snapshot_pending |
-| 原始基线 | 1455/1457，约99.86%，完整保留 | output/lesson2/baseline_20261103/ |
-| 覆盖补全 | 同编号比较后补入3396个原快照边界外价位 | coverage_levels_added |
-| gap口径 | 录制10条（两市场各5），另检出1次编号连续性缺口，总11 | gap_counts / gap_details |
-| 真实断连 | 历史独立WS连接主动关闭后重连；当前代码重放该数据仍同步 | controlled_disconnect_validation.json / submission_disconnect_replay.json |
-| 合成演示 | 前20档2/2、双策略样本一致、每策略302样本、2次gap恢复 | demo_validation.json |
-| 本次实时短测 | 未通过：REST快照HTTP451 | submission_live_smoke.json |
+| 测试 | 33 passed | submission_test_results.txt |
+| 既有真实24小时单遍复算 | 1457次同编号有效比较全部一致；另1393张跨过、2张待比较不计分母，U本位31次 | real_24h_validation.json |
+| 分市场 | 现货1426/1426，U本位31/31 | consistency_by_market |
+| 优化前后对账 | 29个数据字段完全相同 | submission_replay_regression.json |
+| 修复前基线 | 1,455/1,457≈99.86%单列归档，不改历史数据 | baseline_20261103/ |
+| 原始文件 | 5772个、542709834字节，逐文件及聚合指纹重算匹配；算法已公开 | fingerprint_data.py / submission_audit.json |
+| 现货完整实时演示 | 官方.vision，204次成交回调、126次簿回调、14样本，最终同步，gap=0、异常0 | submission_spot_vision_live.json |
+| 现货当前主动断连 | 真正关闭WS，1次gap；重连后2快照、201 depth、148 trade，最终同步 | submission_spot_controlled_disconnect.json |
+| U本位通道 | /public深度、/market aggTrade各3条真实消息、字段齐全 | submission_websocket_channels.json |
+| U本位完整实时源 | 直连与代理REST快照仍451，未通过 | submission_live_smoke.json / submission_live_proxy_smoke.json |
+| 双策略真实60秒 | 各3624次回调、121样本，完整内容指纹和样本相同；篡改并报错第三策略未影响它们 | submission_two_strategies.json |
+| 合成演示 | 2/2比较、2次gap恢复，两策略各302样本 | demo_validation.json |
 
-真实24小时是既有录制批次，不是本次重新录满24小时；HTTP451不被写成成功。新机器若没有原始Parquet，只能复查提供的报告和运行测试/合成演示，不能凭空复现真实全量结果。
+真实24小时接收范围为2026-10-28 01:10:51.944至10-29 01:10:58.172（北京时间），六个必需频道各至少23.99小时、无补录。终点两市场同步。抽查全匹配不能称全时刻准确率100%。
 
-## 已处理的问题
+## 独立复核意见处理
 
-1. 有限快照覆盖：两次旧差异分别缺4、8个卖价，全部在重建1000档快照之外，之后无相应已录增量。当前先完成同编号比较并记账，再仅补充原已知边界外价位；不重置健康簿，不覆盖已知范围的错量和缺失。测试特意验证第一次差异仍须记失败、未来快照不得提前引入、已知错误不得被快照掩盖。
-2. 数据统计：不再把零次比较报告成100%；按市场分别检验一致率；输出差异详情、覆盖补充数和分类型gap计数。
-3. 采集路由：官方已将U本位深度与聚合成交分到/public和/market；新代码使用双连接，并由接收队列保留实际到达顺序；录制与实时演示复用同一采集实现。现货新快照取5000档，U本位1000档。新连接离线测试通过；独立现网WS检查的深度、aggTrade各收到3条真实消息，核心字段齐全。完整实时源仍受REST快照HTTP451限制。
-4. 首条边界：保留当前现货保守初始化政策U<=last<=u；U=last+1时重取快照，后续才检查U<=last+1<=u。该行为与数学上可连续的边界分开陈述，不再直接宣布为确定漏洞。U本位后续pu不等不允许区间兜底。
-5. 文档：统一测试数量、真实数据首尾时间、原基线与新结果；删除同编号差异由毫秒错位解释的无证据结论；标明按订阅公平、普通异常隔离和事件触发采样的边界。
-6. 笔记与图：撮合计划只初始化新激活订单的队列，补上成交余量扣减；图中成交/状态由模拟交易所推送，策略目前只计算指标，PnL/执行等后续内容明确标注。
+1. 文案：旧1455/99.86%均标为修复前基线；当前结果带有效分母、跨过/待比较数量与U本位31次。内部Q&A改成“历史v2是trade、当前为何aggTrade”。
+2. 交付分层：讲义移到仓库外_内部材料_不交；老师包用白名单，不含答辩卡、第一课资产或完整内部复核。完整复核仍留PR，成果导航不以审核为首项。
+3. 交接：正文中的固定旧HEAD、20/28项、历史成交粒度和学习进度已更新，历史交接另存。
+4. 网络：现货改官方.vision端点并实际跑通；U本位只确认WS通道，REST451与新24小时未做继续披露。
+5. 采集：代理支持CLI与BINANCE_PROXY；自动化入口只允许独立空目录；快照统一委托同一实现。
+6. 验证性能：计数和模拟器共享一次流；capture采完只调用一次finalize完整核验，29字段不变。
+7. 指纹：公开原166fea聚合值的精确NUL/LF编码算法与可复算脚本，重新对5772个文件验证。
+8. 撮合计划：买单仅由主动卖成交、卖单仅由主动买成交，显式过滤；仍是设计而非已实现撮合。
+9. 集成修正：采集改为复用实时源后，主动断连脚本的连接注入点也改到真实构造器，实网重测通过。
 
-## 仍需主动披露的边界
+## 保留边界
 
-- 历史v2录制的U本位成交是更细的逐笔trade，而作业原文要求aggTrade；不能把旧数据改称aggTrade。当前新采集器已按官方路由使用aggTrade，但尚未取得新的24小时该口径录制。
-- 真实主动断连验证为WebSocket连接级，不是整机断网。若导师按字面要求整机断网实验，仍需补做。
-- 新实时连接在本机重测遇HTTP451，不能宣称本次新现网联调成功；历史录制及当前离线结果分别保留。
-- 有限深度即使扩大到5000档也不是全市场覆盖保证；跨过编号的快照无法比较，U本位有效比较仅31次，应同时给出分母。
-- 采样是每市场/交易对每秒最多一次，事件触发，非秒末汇总；无事件不输出。示例状态回调只记录，缺口内成交不能靠快照补回。
-- 回调捕获普通异常，不提供进程/超时隔离；慢回调或死循环仍可能阻塞。
-- 下单、撮合、账户和风控只有接口及设计，没有真实执行实现。
+历史U本位24小时是逐笔trade，不改名、不伪造新的aggTrade订阅记录；当前没有新的aggTrade口径24小时采集。本机U本位REST451未解决。
 
-## 官方核对来源
+既有原始录制证明两市场连接/快照请求异常并恢复，各约72秒取得新快照，全市场约79.285秒；这不是整机断网证明。没有执行人工关闭整机网络。详见docs/NETWORK_RECOVERY_TIMELINE.md。
 
-- 币安现货同步与有限快照范围：https://github.com/binance/binance-spot-api-docs/blob/master/web-socket-streams.md#how-to-manage-a-local-order-book-correctly
-- U本位同步：https://developers.binance.com/en/docs/products/derivatives-trading-usds-futures/websocket-market-streams/How-to-manage-a-local-order-book-correctly
-- U本位分路由公告：https://developers.binance.com/en/docs/products/derivatives-trading-usds-futures/websocket-market-streams/Important-WebSocket-Change-Notice
-- hftbacktest成交模型：https://hftbacktest.readthedocs.io/en/latest/order_fill.html
-- 延迟教程：https://hftbacktest.readthedocs.io/en/latest/tutorials/Impact%20of%20Order%20Latency.html
+有限深度、回调超时隔离缺失、分钟缓冲损失和事件触发采样边界见使用说明。下单、撮合、风控、账户仍是接口/设计。
 
-## 追加交付核验
+## 证据一致性与独立复算
 
-真实前60秒双策略各收到3624次回调、各形成121条样本，全部回调内容指纹和全部样本一致；故意修改数据并抛出一次异常的第三策略不影响它们。证据为 `submission_two_strategies.json`。原始批次5772个Parquet、542709834字节，清单指纹记录于 `submission_audit.json`，原始文件不进提交。源码证据指纹按UTF-8文本统一LF计算，兼容Windows检出换行。
+verify_submission.py仅核对报告、固定历史批次断言与源码指纹的一致性；不能代替validate_replay.py读取原始Parquet。当前完整真实回放已经重新执行，结果与独立审核的旧版本29个数据字段相同；第三方仍需原始数据才能独立复算。
 
-## Grok并行审核的后续核对
-
-详见 `GROK_AUDIT_RECONCILIATION.md`。原7个未提交改动已提交推送；当前28项测试通过。补测中，独立/public深度和/market aggTrade通道各收3条真实消息，见 `submission_websocket_channels.json`。使用本机已有代理进行完整实时源尝试仍遇REST HTTP451，见 `submission_live_proxy_smoke.json`。因此：接口实现通过、WS通道短测通过、完整实时源未通过、新aggTrade口径24小时未做。不能混为“新采集已全部验收”。
+官方端点依据：https://developers.binance.com/en/docs/products/spot/faqs/market_data_only

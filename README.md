@@ -2,7 +2,7 @@
 
 ## 第二课：模拟交易所与成交模拟（当前提交）
 
-提交入口见 `SUBMISSION_README.md`，最终复核见 `SUBMISSION_REVIEW.md`。第二课代码、运行命令和真实 24 小时验收口径统一见 `LESSON2_README.md`；学习与汇报材料见 `第二课_学习与汇报.html`。当前版本包含 28 项单元测试、可替换的实时/回放数据源、按小时裁剪的流式回放，以及 `status=passed` 的真实双市场 24 小时验收。提交分支为 `sim-exchange`，PR 为 #1；原始 Parquet 数据不进入仓库。
+提交入口见 `SUBMISSION_README.md`，最终复核见 `SUBMISSION_REVIEW.md`。第二课代码、运行命令和真实 24 小时验收口径统一见 `LESSON2_README.md`。当前版本包含 33 项单元测试、可替换的实时/回放数据源、按小时裁剪的流式回放，以及 `status=passed` 的真实双市场 24 小时验收。提交分支为 `sim-exchange`，PR 为 #1；原始 Parquet 数据不进入仓库。老师包只包含第二课成果；第二课订单簿看 `sim_exchange/orderbook.py`，根目录同名文件属于第一课。现货.vision完整短测通过；U本位REST仍451。
 
 ---
 

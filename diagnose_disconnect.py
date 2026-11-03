@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import argparse
 import json
 from collections import Counter
 from datetime import datetime
@@ -14,7 +15,9 @@ from validate_replay import validate
 
 async def exercise(root: Path):
     """只关闭第一条真实连接；第二次及以后使用原始连接，不注入伪事件。"""
-    original_connect = record_market.connect
+    import websockets.asyncio.client as websocket_client
+    # record_one现复用live_source；后者从此模块取得真正的连接构造器。
+    original_connect = websocket_client.connect
     first_connection = True
     disconnect_started = None
 
@@ -48,19 +51,22 @@ async def exercise(root: Path):
         first_connection = False
         return ControlledConnection(url, kwargs, close_after)
 
-    record_market.connect = controlled_connect
+    websocket_client.connect = controlled_connect
     try:
         store = ParquetEventStore(root)
         await record_market.record_one("spot", "BTCUSDT", 45 / 3600, store, None)
     finally:
-        record_market.connect = original_connect
+        websocket_client.connect = original_connect
     return disconnect_started, datetime.now().astimezone().isoformat()
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", default="output/lesson2/submission_spot_controlled_disconnect.json")
+    args = parser.parse_args()
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     root = Path(f"data/lesson2_disconnect_{stamp}")
-    output = Path("output/lesson2/controlled_disconnect_validation.json")
+    output = Path(args.output)
     disconnect_started, test_ended = asyncio.run(exercise(root))
     report = validate(str(root), str(output))
     events = list(ParquetReplaySource(root).events())
@@ -74,7 +80,7 @@ def main():
         "test_type": "controlled_websocket_disconnect_not_whole_machine_network",
         "disconnect_started_at": disconnect_started,
         "test_ended_at": test_ended,
-        "close_trigger": "真实首条 WebSocket 收到行情后，以 1012 主动关闭；未注入伪 gap",
+        "close_trigger": "首条真实连接建立12秒后以1012主动关闭；未注入伪gap",
         "events_after_last_gap": dict(after),
         "reconnected_and_resynced": recovered,
     })

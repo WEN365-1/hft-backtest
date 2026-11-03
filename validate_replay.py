@@ -27,37 +27,45 @@ def validate(root: str, output: str) -> dict:
     backfill_integrity: Counter = Counter()
     backfill_first = backfill_last = None
     first_ts = last_ts = first_replay_ts = last_replay_ts = None
-    for event in ParquetReplaySource(root).events():
-        key = (event["market"], event["symbol"], event["event_type"])
-        counts[key] += 1
-        ts, replay_ts = event["recv_ts_ms"], replay_time_ms(event)
-        first_recv[key] = min(first_recv.get(key, ts), ts)
-        last_recv[key] = max(last_recv.get(key, ts), ts)
-        first_replay[key] = min(first_replay.get(key, replay_ts), replay_ts)
-        last_replay[key] = max(last_replay.get(key, replay_ts), replay_ts)
-        first_ts = ts if first_ts is None else min(first_ts, ts)
-        last_ts = ts if last_ts is None else max(last_ts, ts)
-        first_replay_ts = (replay_ts if first_replay_ts is None
-                           else min(first_replay_ts, replay_ts))
-        last_replay_ts = (replay_ts if last_replay_ts is None
-                          else max(last_replay_ts, replay_ts))
-        if event["event_type"] == "trade":
-            source = event.get("source") or "binance_websocket_live"
-            trade_sources[f"{key[0]}.{key[1]}.{source}"] += 1
-        if event.get("source") == BACKFILL_SOURCE:
-            backfill_integrity["rows"] += 1
-            backfill_first = (replay_ts if backfill_first is None
-                              else min(backfill_first, replay_ts))
-            backfill_last = (replay_ts if backfill_last is None
-                             else max(backfill_last, replay_ts))
-            valid = (event["event_type"] == "trade"
-                     and event.get("replay_ts_ms") == event.get("trade_ts_ms")
-                     and event.get("event_ts_ms") is None and ts >= replay_ts)
-            backfill_integrity["valid_rows" if valid else "invalid_rows"] += 1
-        if event["event_type"] == "gap":
-            gap_details.append({"market": event["market"], "symbol": event["symbol"],
-                                "recv_ts_ms": ts, "reason": event.get("reason")})
-    ex = SimExchange(ParquetReplaySource(root))
+    def counted_events():
+        nonlocal first_ts, last_ts, first_replay_ts, last_replay_ts, backfill_first, backfill_last
+        for event in ParquetReplaySource(root).events():
+            key = (event["market"], event["symbol"], event["event_type"])
+            counts[key] += 1
+            ts, replay_ts = event["recv_ts_ms"], replay_time_ms(event)
+            first_recv[key] = min(first_recv.get(key, ts), ts)
+            last_recv[key] = max(last_recv.get(key, ts), ts)
+            first_replay[key] = min(first_replay.get(key, replay_ts), replay_ts)
+            last_replay[key] = max(last_replay.get(key, replay_ts), replay_ts)
+            first_ts = ts if first_ts is None else min(first_ts, ts)
+            last_ts = ts if last_ts is None else max(last_ts, ts)
+            first_replay_ts = (replay_ts if first_replay_ts is None
+                               else min(first_replay_ts, replay_ts))
+            last_replay_ts = (replay_ts if last_replay_ts is None
+                              else max(last_replay_ts, replay_ts))
+            if event["event_type"] == "trade":
+                source = event.get("source") or "binance_websocket_live"
+                trade_sources[f"{key[0]}.{key[1]}.{source}"] += 1
+            if event.get("source") == BACKFILL_SOURCE:
+                backfill_integrity["rows"] += 1
+                backfill_first = (replay_ts if backfill_first is None
+                                  else min(backfill_first, replay_ts))
+                backfill_last = (replay_ts if backfill_last is None
+                                 else max(backfill_last, replay_ts))
+                valid = (event["event_type"] == "trade"
+                         and event.get("replay_ts_ms") == event.get("trade_ts_ms")
+                         and event.get("event_ts_ms") is None and ts >= replay_ts)
+                backfill_integrity["valid_rows" if valid else "invalid_rows"] += 1
+            if event["event_type"] == "gap":
+                gap_details.append({"market": event["market"], "symbol": event["symbol"],
+                                    "recv_ts_ms": ts, "reason": event.get("reason")})
+            yield event
+
+    class CountedSource:
+        def events(self):
+            return counted_events()
+
+    ex = SimExchange(CountedSource())
     stats = ex.run()
     pairs = sorted({(market, symbol) for market, symbol, _ in counts})
     books = {f"{m}.{s}": ex.book(m, s) for m, s in pairs}

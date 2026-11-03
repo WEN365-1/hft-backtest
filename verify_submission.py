@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 
 
@@ -12,7 +13,10 @@ def main() -> None:
     acceptance = json.loads((out / "final_acceptance.json").read_text(encoding="utf-8"))
     replay = json.loads((out / "real_24h_validation.json").read_text(encoding="utf-8"))
     baseline = json.loads((out / "baseline_20261103/real_24h_validation.json").read_text(encoding="utf-8"))
-    assert acceptance["status"] == "passed" and acceptance["tests_passed"] == 28
+    tests_text = (out / "submission_test_results.txt").read_text(encoding="utf-8")
+    tests_match = re.search(r"(\d+) passed", tests_text)
+    assert acceptance["status"] == "passed" and tests_match
+    assert acceptance["tests_passed"] == int(tests_match.group(1)) > 0
     assert acceptance["snapshot_comparisons"] == replay["snapshot_comparisons"] == 1457
     assert acceptance["top20_exact_matches"] == replay["top20_exact_matches"] == 1457
     assert baseline["top20_exact_matches"] == 1455

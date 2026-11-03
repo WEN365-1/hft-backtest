@@ -11,10 +11,11 @@ from sim_exchange.strategies import OneSecondMetricsStrategy
 
 
 def test_market_specific_trade_streams():
-    spot_url, _ = endpoints("spot", "BTCUSDT")
+    spot_url, spot_rest = endpoints("spot", "BTCUSDT")
     usdm_url, _ = endpoints("usdm", "BTCUSDT")
     assert "btcusdt@aggTrade" in spot_url
-    assert "stream.binance.com:443" in spot_url
+    assert "data-stream.binance.vision:443" in spot_url
+    assert spot_rest == "https://data-api.binance.vision/api/v3/depth"
     assert ":9443" not in spot_url
     assert "/public/" in usdm_url
     assert "btcusdt@depth@100ms" in usdm_url
@@ -405,3 +406,81 @@ def test_live_usdm_merges_separate_public_and_market_connections(monkeypatch):
     assert "/public/" in opened[0] and "/market/" in opened[1]
     received_times = [event["recv_ts_ms"] for event in events]
     assert received_times == sorted(received_times)
+
+
+def test_validator_reads_each_event_stream_once(tmp_path, monkeypatch):
+    import validate_replay
+    calls = []
+    class Source:
+        def __init__(self, root):
+            pass
+        def events(self):
+            calls.append(True)
+            yield snap()
+            yield depth()
+    monkeypatch.setattr(validate_replay, "ParquetReplaySource", Source)
+    result = validate_replay.validate("unused", str(tmp_path / "report.json"))
+    assert len(calls) == 1
+    assert result["event_counts"] == {"spot.BTCUSDT.depth": 1, "spot.BTCUSDT.snapshot": 1}
+    assert result["final_synced"]["spot.BTCUSDT"]
+
+
+def test_recording_terminal_snapshot_delegates_to_live_implementation(monkeypatch):
+    import record_market
+    calls = []
+    expected = snap()
+    def fetch(*args):
+        calls.append(args)
+        return expected
+    monkeypatch.setattr(record_market, "fetch_snapshot", fetch)
+    assert record_market.snapshot("spot", "BTCUSDT", "https://example.invalid", "proxy") is expected
+    assert calls == [("spot", "BTCUSDT", "https://example.invalid", "proxy")]
+
+
+def test_capture_forwards_configured_proxy_and_finalizes_once(tmp_path, monkeypatch):
+    import capture_24h
+    import record_market
+    import finalize_lesson2
+    seen, states, finalizations = [], [], []
+    async def record(markets, symbol, hours, store, proxy):
+        seen.append((markets, symbol, hours, proxy))
+    def finalize(root):
+        finalizations.append(root)
+        return {"status": "passed"}
+    monkeypatch.setattr(capture_24h, "PROJECT", tmp_path)
+    monkeypatch.setattr(capture_24h, "write_status", lambda state, **kwargs: states.append(state))
+    monkeypatch.setattr(record_market, "run_all", record)
+    monkeypatch.setattr(finalize_lesson2, "validate", finalize)
+    monkeypatch.setenv("BINANCE_PROXY", "http://configured.invalid:1234")
+    capture_24h.run(data_root="data/new_run")
+    assert seen[0][-1] == "http://configured.invalid:1234"
+    assert states == ["running", "completed", "succeeded"]
+    assert len(finalizations) == 1
+    capture_24h.run(proxy="http://explicit.invalid:5678", data_root="data/another_run")
+    assert seen[-1][-1] == "http://explicit.invalid:5678"
+
+
+def test_capture_refuses_existing_data_directory(tmp_path):
+    import capture_24h
+    import pytest
+    (tmp_path / "existing.parquet").write_bytes(b"original evidence")
+    with pytest.raises(ValueError, match="新目录"):
+        capture_24h.run(data_root=str(tmp_path))
+    assert (tmp_path / "existing.parquet").read_bytes() == b"original evidence"
+
+
+def test_original_data_fingerprint_is_reproducible_and_detects_tampering(tmp_path):
+    import hashlib
+    import pytest
+    from fingerprint_data import fingerprint, verify
+    (tmp_path / "b.parquet").write_bytes(b"second")
+    (tmp_path / "a.parquet").write_bytes(b"first")
+    report = fingerprint(tmp_path)
+    expected_bytes = b"".join(
+        f"{item['file']}\0{item['bytes']}\0{item['sha256']}\n".encode()
+        for item in report["manifest"])
+    assert report["summary"]["manifest_sha256"] == hashlib.sha256(expected_bytes).hexdigest()
+    verify(fingerprint(tmp_path), report)
+    (tmp_path / "a.parquet").write_bytes(b"changed")
+    with pytest.raises(ValueError):
+        verify(fingerprint(tmp_path), report)

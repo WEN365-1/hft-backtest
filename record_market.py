@@ -10,10 +10,8 @@ import asyncio
 import json
 import time
 
-import requests
-
 from sim_exchange.endpoints import endpoints
-from sim_exchange.live_source import now_ms
+from sim_exchange.live_source import now_ms, fetch_snapshot
 from sim_exchange.storage import ParquetEventStore
 
 try:
@@ -23,15 +21,8 @@ except ImportError:
 
 
 def snapshot(market: str, symbol: str, rest_url: str, proxy: str | None) -> dict:
-    proxies = {"http": proxy, "https": proxy} if proxy else None
-    response = requests.get(rest_url, params={"symbol": symbol, "limit": 5000 if market == "spot" else 1000},
-                            timeout=20, proxies=proxies)
-    response.raise_for_status()
-    data = response.json()
-    return {"market": market, "symbol": symbol, "event_type": "snapshot",
-            "recv_ts_ms": now_ms(), "event_ts_ms": None,
-            "last_update_id": int(data["lastUpdateId"]),
-            "bids": data["bids"], "asks": data["asks"]}
+    """兼容旧诊断入口；终点与实时周期快照共用唯一实现。"""
+    return fetch_snapshot(market, symbol, rest_url, proxy)
 
 
 async def record_one(market: str, symbol: str, hours: float, store: ParquetEventStore,

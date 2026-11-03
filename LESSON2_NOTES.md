@@ -75,6 +75,9 @@ on_exchange_time(now):
 
 on_trade(trade):                                   # 只处理已激活的挂单
     for order at trade.price in time_priority:
+        if not ((order.side == BUY and trade.aggressor_side == SELL)
+                or (order.side == SELL and trade.aggressor_side == BUY)):
+            continue                              # 仅处理主动方与挂单相反的成交
         consumed = min(order.queue_ahead, trade.remaining_qty)
         order.queue_ahead -= consumed
         trade.remaining_qty -= consumed
@@ -112,11 +115,11 @@ on_fill(fill):
 
 旧批次 USD-M 实时逐笔成交从 10:53 开始；此前 07:58—10:53 的缺口以 222,914 条币安真实 REST `aggTrades` 补齐，完整性检查为 222,914 条有效、0 条无效。补录与实时数据可通过 `source` 区分：补录 `recv_ts_ms` 是实际下载时间，`replay_ts_ms=T` 是历史成交发生时间，REST 没有的 WebSocket `E` 留空。补录清单为 `output/lesson2/usdm_trade_backfill_manifest.json`。这些补录只修复 USD-M 研究成交序列，无法补回现货历史 WebSocket 深度。
 
-### 新批次最终 24 小时验收
+### 真实v2批次与修复前基线
 
 修复后现货 WebSocket 改用 443 端口，REST 快照改为异步避免阻塞另一市场，并在采集终点强制再拍快照。新批次使用 `data/lesson2_real_24h_v2`，不与旧数据拼接，原始接收时间从 2026-10-28 01:10:51.944 至 2026-10-29 01:10:58.172，采集后再执行验收，`status=passed`。六个必需频道均实际覆盖至少 23.99 小时，总体跨度 24.00173 小时，`live_capture_24h=true`，本批次没有使用历史补录。
 
-最终数据量：现货 depth 857,475 条、trade 800,124 条、snapshot 1,429 张；U 本位 depth 846,380 条、trade 2,287,977 条、snapshot 1,428 张。同一 `lastUpdateId` 下有效比较 1,457 次，完全一致 1,455 次，前 20 档一致率约 99.86%；1,393 张被聚合事件跨过编号的快照单列，未计入分母。双市场最终均 synced=true，回调异常为 0。主采集期间现货和 U 本位各记录 5 次真实连接 gap，随后均自动恢复并继续落盘。最终证据为 `output/lesson2/real_24h_validation.json` 与 `output/lesson2/final_acceptance.json`。
+最终数据量：现货 depth 857,475 条、trade 800,124 条、snapshot 1,429 张；U 本位 depth 846,380 条、trade 2,287,977 条、snapshot 1,428 张。修复前基线为 1,455/1,457≈99.86%，已单独归档；当前同批复核为1,457/1,457（另有1393张跨过、2张待比较不计分母，U本位31次），见§8；1,393 张被聚合事件跨过编号的快照单列，未计入分母。双市场最终均 synced=true，回调异常为 0。主采集期间现货和 U 本位各记录 5 次真实连接 gap，随后均自动恢复并继续落盘。最终证据为 `output/lesson2/real_24h_validation.json` 与 `output/lesson2/final_acceptance.json`。
 
 ### 真实短时冒烟补充
 
@@ -138,8 +141,12 @@ on_fill(fill):
 
 同一真实 v2 批次重新回放，当前 1457/1457，前20档有效比较一致率100%；现货1426/1426，U本位31/31。原1455/1457报告已归档，不能把新结果冒充新的24小时录制。两次旧差异均因有限快照外未知卖价进入前20档。核验先记账，再用已收到且同编号的快照扩展未知深度，已知区间内的错误不被快照覆盖。
 
-首条现货采取覆盖快照编号的保守政策；`last+1` 是正常后续规则，不能混讲。录制 gap 共10条，含连接/快照请求异常；回放另检出1次序列衔接缺口，总11。当前28项测试通过。实时双连接路由已改，现网短测遭HTTP451，详见 `SUBMISSION_REVIEW.md`。
+首条现货采取覆盖快照编号的保守政策；`last+1` 是正常后续规则，不能混讲。录制 gap 共10条，含连接/快照请求异常；回放另检出1次序列衔接缺口，总11。当前33项测试通过。实时双连接路由已改，现网短测遭HTTP451，详见 `SUBMISSION_REVIEW.md`。
 
 伪代码仅描述下一课设计：只对新激活订单初始化一次队列，成交必须扣减订单余量与事件可用成交量；多个本方订单共享外部成交量和队列状态的实现、撤单去重与边界测试均未在本课实现。
 
 并行审核补充：独立U本位WS深度/aggTrade通道各收到3条真实消息，完整实时源REST快照仍451；没有新的aggTrade口径24小时录制。当前代码、历史录制和各级验证证据分开陈述，见GROK_AUDIT_RECONCILIATION.md。
+
+## 9. 独立复核后的说明
+
+历史v2原始数据和修复前基线不变。当前测试数量见final_acceptance.json（本轮33项）；单遍回放与c4b171b的29个数据结果字段完全相同，见submission_replay_regression.json。现货当前使用官方.vision公开行情端点，完整实时短测已同步、无gap；U本位WS通道可收消息，但REST仍451。既有采集网络异常与恢复的逐时刻证据见docs/NETWORK_RECOVERY_TIMELINE.md，不能据此断言整机网络已关闭。

@@ -1,7 +1,7 @@
 {
   "status": "ready_with_disclosures",
-  "reviewed_at_utc": "2026-11-03T05:02:58.730773+00:00",
-  "tests_passed": 28,
+  "reviewed_at_utc": "2026-11-03T05:39:30.939162+00:00",
+  "tests_passed": 33,
   "full_replay": {
     "comparisons": 1457,
     "matches": 1457,
@@ -32,7 +32,7 @@
     "new_live_smoke_HTTP451_not_passed"
   ],
   "entry": "SUBMISSION_README.md",
-  "review": "SUBMISSION_REVIEW.md",
+  "review": "https://github.com/WEN365-1/hft-backtest/blob/sim-exchange/SUBMISSION_REVIEW.md",
   "websocket_channels_check": {
     "checked_at_utc": "2026-11-03T05:16:59.698732+00:00",
     "scope": "real_websocket_channels_only_not_snapshot_or_orderbook_or_24h",
@@ -82,5 +82,42 @@
       "HTTPError('451 Client Error:  for url: https://fapi.binance.com/fapi/v1/depth?symbol=BTCUSDT&limit=1000')"
     ]
   },
-  "grok_reconciliation": "GROK_AUDIT_RECONCILIATION.md"
+  "grok_reconciliation": "https://github.com/WEN365-1/hft-backtest/blob/sim-exchange/GROK_AUDIT_RECONCILIATION.md",
+  "spot_full_live_demo": {
+    "kind": "real_live_demo_not_24h",
+    "checked_at_utc": "2026-11-03T05:27:50.752606+00:00",
+    "results": [
+      {
+        "market": "spot",
+        "symbol": "BTCUSDT",
+        "elapsed_seconds": 23.79699999999866,
+        "requested_seconds": 15.0,
+        "final_synced": true,
+        "gaps": 0,
+        "callback_errors": 0,
+        "callbacks": {
+          "on_trade": 204,
+          "on_book": 126
+        },
+        "samples": 14,
+        "nonempty_bids": true,
+        "nonempty_asks": true
+      }
+    ]
+  },
+  "spot_current_controlled_disconnect": {
+    "report": "output/lesson2/submission_spot_controlled_disconnect.json",
+    "reconnected_and_resynced": true,
+    "recorded_gap": 1
+  },
+  "single_pass_replay_regression": {
+    "baseline_commit": "c4b171b",
+    "optimization": "count events during exchange replay; one stream traversal",
+    "compared_fields": 29,
+    "different_fields": [],
+    "result": "unchanged",
+    "validation_source": "complete real v2 dataset reprocessed after single-pass change"
+  },
+  "raw_fingerprint_algorithm": "fingerprint_data.py: sorted UTF8 path+NUL+decimal bytes+NUL+lowercase sha256+LF",
+  "teacher_package_builder": "build_submission.py"
 }
