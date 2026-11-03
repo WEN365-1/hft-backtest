@@ -1,0 +1,10 @@
+{
+  "data_mode": "real_recorded_v2_first_60_seconds",
+  "two_strategies_callback_digest_equal": true,
+  "two_strategies_all_samples_equal": true,
+  "callbacks_per_strategy": 3624,
+  "samples_per_strategy": 121,
+  "callback_sha256": "9b1660684bb1a13264bcae740059a3666b4a588bad2ef06bedf5b6e3bc9ada97",
+  "intentional_mutating_strategy_error_isolated": true,
+  "exchange_book_not_mutated": true
+}

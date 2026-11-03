@@ -1,0 +1,13 @@
+{
+  "checked_at_utc": "2026-11-03T04:47:42.688201+00:00",
+  "kind": "real_network_smoke_not_24h",
+  "market": "usdm",
+  "channels": "public depth + market aggTrade",
+  "event_counts": {
+    "gap": 1
+  },
+  "passed": false,
+  "errors": [
+    "HTTPError('451 Client Error:  for url: https://fapi.binance.com/fapi/v1/depth?symbol=BTCUSDT&limit=1000')"
+  ]
+}

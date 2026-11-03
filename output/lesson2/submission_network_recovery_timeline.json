@@ -1,0 +1,94 @@
+{
+  "evidence_scope": "two_market_recorded_collection_network_failures_and_fresh_snapshots_not_proof_of_whole_machine_offline",
+  "gaps": [
+    {
+      "market": "spot",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127416392,
+      "reason": "SSLError(MaxRetryError(\"HTTPSConnectionPool(host='api.binance.com', port=443): Max retries exceeded with url: /api/v3/depth?symbol=BTCUSDT&limit=1000 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1010)')))\"))",
+      "time": "2026-10-28T02:56:56.392000+08:00"
+    },
+    {
+      "market": "usdm",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127423630,
+      "reason": "SSLError(MaxRetryError(\"HTTPSConnectionPool(host='fapi.binance.com', port=443): Max retries exceeded with url: /fapi/v1/depth?symbol=BTCUSDT&limit=1000 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1010)')))\"))",
+      "time": "2026-10-28T02:57:03.630000+08:00"
+    },
+    {
+      "market": "spot",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127427525,
+      "reason": "ConnectionResetError()",
+      "time": "2026-10-28T02:57:07.525000+08:00"
+    },
+    {
+      "market": "usdm",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127434767,
+      "reason": "ConnectionResetError()",
+      "time": "2026-10-28T02:57:14.767000+08:00"
+    },
+    {
+      "market": "spot",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127439683,
+      "reason": "ConnectionResetError()",
+      "time": "2026-10-28T02:57:19.683000+08:00"
+    },
+    {
+      "market": "usdm",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127446892,
+      "reason": "ConnectionResetError()",
+      "time": "2026-10-28T02:57:26.892000+08:00"
+    },
+    {
+      "market": "spot",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127453824,
+      "reason": "ConnectionResetError()",
+      "time": "2026-10-28T02:57:33.824000+08:00"
+    },
+    {
+      "market": "usdm",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127461013,
+      "reason": "ConnectionResetError()",
+      "time": "2026-10-28T02:57:41.013000+08:00"
+    },
+    {
+      "market": "spot",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127471975,
+      "reason": "ConnectionResetError()",
+      "time": "2026-10-28T02:57:51.975000+08:00"
+    },
+    {
+      "market": "usdm",
+      "symbol": "BTCUSDT",
+      "recv_ts_ms": 1793127479156,
+      "reason": "ConnectionResetError()",
+      "time": "2026-10-28T02:57:59.156000+08:00"
+    }
+  ],
+  "recovery_snapshots": {
+    "spot": {
+      "recv_ts_ms": 1793127488537,
+      "time": "2026-10-28T02:58:08.537000+08:00",
+      "last_update_id": 101974013069,
+      "seconds_from_first_gap": 72.145
+    },
+    "usdm": {
+      "recv_ts_ms": 1793127495677,
+      "time": "2026-10-28T02:58:15.677000+08:00",
+      "last_update_id": 11940270605007,
+      "seconds_from_first_gap": 72.047
+    }
+  },
+  "all_markets_snapshot_recovery_seconds": 79.285,
+  "final_synced": {
+    "spot.BTCUSDT": true,
+    "usdm.BTCUSDT": true
+  }
+}

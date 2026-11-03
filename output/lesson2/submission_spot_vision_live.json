@@ -1,0 +1,22 @@
+{
+  "kind": "real_live_demo_not_24h",
+  "checked_at_utc": "2026-11-03T05:27:50.752606+00:00",
+  "results": [
+    {
+      "market": "spot",
+      "symbol": "BTCUSDT",
+      "elapsed_seconds": 23.79699999999866,
+      "requested_seconds": 15.0,
+      "final_synced": true,
+      "gaps": 0,
+      "callback_errors": 0,
+      "callbacks": {
+        "on_trade": 204,
+        "on_book": 126
+      },
+      "samples": 14,
+      "nonempty_bids": true,
+      "nonempty_asks": true
+    }
+  ]
+}

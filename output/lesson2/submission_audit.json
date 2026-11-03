@@ -1,0 +1,123 @@
+{
+  "status": "ready_with_disclosures",
+  "reviewed_at_utc": "2026-11-03T05:39:30.939162+00:00",
+  "tests_passed": 33,
+  "full_replay": {
+    "comparisons": 1457,
+    "matches": 1457,
+    "previous_matches": 1455,
+    "same_raw_batch": true
+  },
+  "raw_data_fingerprint": {
+    "files": 5772,
+    "bytes": 542709834,
+    "manifest_sha256": "166fea19a753b2f41243a4b4cb78ab8ea477d97d7085456868203987d336c4f2"
+  },
+  "new_live_network_smoke": {
+    "checked_at_utc": "2026-11-03T04:47:42.688201+00:00",
+    "kind": "real_network_smoke_not_24h",
+    "market": "usdm",
+    "channels": "public depth + market aggTrade",
+    "event_counts": {
+      "gap": 1
+    },
+    "passed": false,
+    "errors": [
+      "HTTPError('451 Client Error:  for url: https://fapi.binance.com/fapi/v1/depth?symbol=BTCUSDT&limit=1000')"
+    ]
+  },
+  "disclosures": [
+    "historical_usdm_trade_not_aggTrade",
+    "connection_disconnect_not_whole_machine_network",
+    "new_live_smoke_HTTP451_not_passed"
+  ],
+  "entry": "SUBMISSION_README.md",
+  "review": "https://github.com/WEN365-1/hft-backtest/blob/sim-exchange/SUBMISSION_REVIEW.md",
+  "websocket_channels_check": {
+    "checked_at_utc": "2026-11-03T05:16:59.698732+00:00",
+    "scope": "real_websocket_channels_only_not_snapshot_or_orderbook_or_24h",
+    "connection": "existing_local_proxy_7890",
+    "channels": [
+      {
+        "url": "wss://fstream.binance.com/public/stream?streams=btcusdt@depth@100ms",
+        "expected_event": "depthUpdate",
+        "received": {
+          "depthUpdate": 3
+        },
+        "required_fields_present": true,
+        "passed": true,
+        "errors": []
+      },
+      {
+        "url": "wss://fstream.binance.com/market/stream?streams=btcusdt@aggTrade",
+        "expected_event": "aggTrade",
+        "received": {
+          "aggTrade": 3
+        },
+        "required_fields_present": true,
+        "passed": true,
+        "errors": []
+      }
+    ],
+    "passed": true,
+    "rest_snapshot_status": "HTTP451 in separate end-to-end smoke; not passed"
+  },
+  "proxy_end_to_end_smoke": {
+    "checked_at_utc": "2026-11-03T05:15:33.000167+00:00",
+    "kind": "real_network_smoke_not_24h",
+    "market": "usdm",
+    "channels": [
+      "wss://fstream.binance.com/public/stream?streams=btcusdt@depth@100ms",
+      "wss://fstream.binance.com/market/stream?streams=btcusdt@aggTrade"
+    ],
+    "connection": "existing_local_proxy_7890",
+    "event_counts": {
+      "gap": 1
+    },
+    "receive_order_monotonic": true,
+    "final_synced": false,
+    "replay_gaps": 1,
+    "passed": false,
+    "errors": [
+      "HTTPError('451 Client Error:  for url: https://fapi.binance.com/fapi/v1/depth?symbol=BTCUSDT&limit=1000')"
+    ]
+  },
+  "grok_reconciliation": "https://github.com/WEN365-1/hft-backtest/blob/sim-exchange/GROK_AUDIT_RECONCILIATION.md",
+  "spot_full_live_demo": {
+    "kind": "real_live_demo_not_24h",
+    "checked_at_utc": "2026-11-03T05:27:50.752606+00:00",
+    "results": [
+      {
+        "market": "spot",
+        "symbol": "BTCUSDT",
+        "elapsed_seconds": 23.79699999999866,
+        "requested_seconds": 15.0,
+        "final_synced": true,
+        "gaps": 0,
+        "callback_errors": 0,
+        "callbacks": {
+          "on_trade": 204,
+          "on_book": 126
+        },
+        "samples": 14,
+        "nonempty_bids": true,
+        "nonempty_asks": true
+      }
+    ]
+  },
+  "spot_current_controlled_disconnect": {
+    "report": "output/lesson2/submission_spot_controlled_disconnect.json",
+    "reconnected_and_resynced": true,
+    "recorded_gap": 1
+  },
+  "single_pass_replay_regression": {
+    "baseline_commit": "c4b171b",
+    "optimization": "count events during exchange replay; one stream traversal",
+    "compared_fields": 29,
+    "different_fields": [],
+    "result": "unchanged",
+    "validation_source": "complete real v2 dataset reprocessed after single-pass change"
+  },
+  "raw_fingerprint_algorithm": "fingerprint_data.py: sorted UTF8 path+NUL+decimal bytes+NUL+lowercase sha256+LF",
+  "teacher_package_builder": "build_submission.py"
+}

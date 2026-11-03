@@ -1,0 +1,8 @@
+{
+  "baseline_commit": "c4b171b",
+  "optimization": "count events during exchange replay; one stream traversal",
+  "compared_fields": 29,
+  "different_fields": [],
+  "result": "unchanged",
+  "validation_source": "complete real v2 dataset reprocessed after single-pass change"
+}

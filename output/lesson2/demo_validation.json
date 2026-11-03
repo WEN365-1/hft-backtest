@@ -1,0 +1,20 @@
+{
+  "data_mode": "synthetic / engineering validation only",
+  "markets": [
+    "spot",
+    "usdm"
+  ],
+  "duration_seconds": 180,
+  "snapshots_compared": 2,
+  "top20_exact_matches": 2,
+  "top20_consistency": 1.0,
+  "gaps_detected_and_recovered": 2,
+  "strategy_callback_errors_isolated": 0,
+  "two_strategies_identical": true,
+  "samples_per_strategy": 302,
+  "callbacks": {
+    "on_book": 6012,
+    "on_trade": 6000,
+    "on_status": 8
+  }
+}

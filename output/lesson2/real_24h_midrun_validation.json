@@ -1,0 +1,73 @@
+{
+  "data_root": "data/lesson2_real_24h",
+  "event_counts": {
+    "spot.BTCUSDT.depth": 182183,
+    "spot.BTCUSDT.snapshot": 303,
+    "spot.BTCUSDT.trade": 219131,
+    "usdm.BTCUSDT.depth": 178878,
+    "usdm.BTCUSDT.snapshot": 303,
+    "usdm.BTCUSDT.trade": 329461
+  },
+  "first_recv_ts_ms": 1792972694997,
+  "last_recv_ts_ms": 1792990941484,
+  "covered_hours": 5.068468611111111,
+  "channel_coverage": {
+    "spot.BTCUSDT.depth": {
+      "event_count": 182183,
+      "first_recv_ts_ms": 1792972695586,
+      "last_recv_ts_ms": 1792990934950,
+      "covered_hours": 5.06649,
+      "meets_24h_span": false
+    },
+    "spot.BTCUSDT.snapshot": {
+      "event_count": 303,
+      "first_recv_ts_ms": 1792972694997,
+      "last_recv_ts_ms": 1792990935623,
+      "covered_hours": 5.066840555555555,
+      "meets_24h_span": false
+    },
+    "spot.BTCUSDT.trade": {
+      "event_count": 219131,
+      "first_recv_ts_ms": 1792972695887,
+      "last_recv_ts_ms": 1792990934731,
+      "covered_hours": 5.066345555555555,
+      "meets_24h_span": false
+    },
+    "usdm.BTCUSDT.depth": {
+      "event_count": 178878,
+      "first_recv_ts_ms": 1792972695878,
+      "last_recv_ts_ms": 1792990940573,
+      "covered_hours": 5.067970833333334,
+      "meets_24h_span": false
+    },
+    "usdm.BTCUSDT.snapshot": {
+      "event_count": 303,
+      "first_recv_ts_ms": 1792972695852,
+      "last_recv_ts_ms": 1792990941484,
+      "covered_hours": 5.068231111111111,
+      "meets_24h_span": false
+    },
+    "usdm.BTCUSDT.trade": {
+      "event_count": 329461,
+      "first_recv_ts_ms": 1792983218745,
+      "last_recv_ts_ms": 1792990927406,
+      "covered_hours": 2.1412947222222223,
+      "meets_24h_span": false
+    }
+  },
+  "all_required_channels_24h": false,
+  "snapshot_comparisons": 306,
+  "snapshot_skipped_stale": 0,
+  "snapshot_skipped_crossed": 296,
+  "snapshot_pending": 2,
+  "top20_exact_matches": 305,
+  "top20_consistency": 0.9967320261437909,
+  "gaps_detected": 0,
+  "gap_details": [],
+  "final_synced": {
+    "spot.BTCUSDT": true,
+    "usdm.BTCUSDT": true
+  },
+  "callback_errors": 0,
+  "note": "一致率只比较同一 lastUpdateId；旧快照或被聚合事件跨过的快照单列，不计入分母。首尾覆盖不等于中间无缺失，补录时段须单列。"
+}

@@ -1,0 +1,20 @@
+{
+  "checked_at_utc": "2026-11-03T05:15:33.000167+00:00",
+  "kind": "real_network_smoke_not_24h",
+  "market": "usdm",
+  "channels": [
+    "wss://fstream.binance.com/public/stream?streams=btcusdt@depth@100ms",
+    "wss://fstream.binance.com/market/stream?streams=btcusdt@aggTrade"
+  ],
+  "connection": "existing_local_proxy_7890",
+  "event_counts": {
+    "gap": 1
+  },
+  "receive_order_monotonic": true,
+  "final_synced": false,
+  "replay_gaps": 1,
+  "passed": false,
+  "errors": [
+    "HTTPError('451 Client Error:  for url: https://fapi.binance.com/fapi/v1/depth?symbol=BTCUSDT&limit=1000')"
+  ]
+}
